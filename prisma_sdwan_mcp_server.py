@@ -1428,43 +1428,55 @@ if __name__ == "__main__":
     )
 
     print(
-        "┌──────────────────────────────────────────────────────────────────────────────┐"
+        "┌──────────────────────────────────────────────────────────────────────────────┐",
+        file=sys.stderr,
     )
     print(
-        "│                                                                              │"
+        "│                                                                              │",
+        file=sys.stderr,
     )
     print(
-        "│   ██████╗ ██████╗ ██╗███████╗███╗   ███╗ █████╗                              │"
+        "│   ██████╗ ██████╗ ██╗███████╗███╗   ███╗ █████╗                              │",
+        file=sys.stderr,
     )
     print(
-        "│   ██╔══██╗██╔══██╗██║██╔════╝████╗ ████║██╔══██╗                             │"
+        "│   ██╔══██╗██╔══██╗██║██╔════╝████╗ ████║██╔══██╗                             │",
+        file=sys.stderr,
     )
     print(
-        "│   ██████╔╝██████╔╝██║███████╗██╔████╔██║███████║                             │"
+        "│   ██████╔╝██████╔╝██║███████╗██╔████╔██║███████║                             │",
+        file=sys.stderr,
     )
     print(
-        "│   ██╔═══╝ ██╔══██╗██║╚════██║██║╚██╔╝██║██╔══██║                             │"
+        "│   ██╔═══╝ ██╔══██╗██║╚════██║██║╚██╔╝██║██╔══██║                             │",
+        file=sys.stderr,
     )
     print(
-        "│   ██║     ██║  ██║██║███████║██║ ╚═╝ ██║██║  ██║                             │"
+        "│   ██║     ██║  ██║██║███████║██║ ╚═╝ ██║██║  ██║                             │",
+        file=sys.stderr,
     )
     print(
-        "│   ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝                             │"
+        "│   ╚═╝     ╚═╝  ╚═╝╚═╝╚══════╝╚═╝     ╚═╝╚═╝  ╚═╝                             │",
+        file=sys.stderr,
     )
     print(
-        "│                                                                              │"
+        "│                                                                              │",
+        file=sys.stderr,
     )
     print(
-        f"│    Name: Prisma SD-WAN MCP Server                                            │"
+        f"│    Name: Prisma SD-WAN MCP Server                                            │",
+        file=sys.stderr,
     )
-    print(f"│    📦 Transport:  {transport_str:<58}│")
+    print(f"│    📦 Transport:  {transport_str:<58}│", file=sys.stderr)
     if args.transport == "sse":
-        print(f"│    🔗 Server URL: {server_url:<58}│")
+        print(f"│    🔗 Server URL: {server_url:<58}│", file=sys.stderr)
     print(
-        "│                                                                              │"
+        "│                                                                              │",
+        file=sys.stderr,
     )
     print(
-        "└──────────────────────────────────────────────────────────────────────────────┘"
+        "└──────────────────────────────────────────────────────────────────────────────┘",
+        file=sys.stderr,
     )
 
     # ── Logging Configuration ──
@@ -1498,8 +1510,8 @@ if __name__ == "__main__":
                 )
 
     except KeyboardInterrupt:
-        print("\n⚠️  Server stopped by user. Exiting gracefully...")
+        print("\n⚠️  Server stopped by user. Exiting gracefully...", file=sys.stderr)
         sys.exit(0)
     except BaseException:
-        print("\n⚠️  Server stopped. Exiting...")
+        print("\n⚠️  Server stopped. Exiting...", file=sys.stderr)
         sys.exit(0)
