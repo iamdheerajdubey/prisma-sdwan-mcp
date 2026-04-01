@@ -1,0 +1,5 @@
+fastmcp
+prisma-sase
+python-dotenv
+pyyaml
+jsonschema

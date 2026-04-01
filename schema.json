@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Prisma SD-WAN Sites Configuration",
+  "type": "object",
+  "required": ["prisma_sdwan"],
+  "properties": {
+    "prisma_sdwan": {
+      "type": "object",
+      "required": ["sites"],
+      "properties": {
+        "sites": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["site_id", "elements"],
+            "properties": {
+              "site_id": {
+                "type": "string",
+                "description": "Unique identifier for the site (e.g., BRANCH-101)"
+              },
+              "elements": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["serial_number"],
+                  "properties": {
+                    "serial_number": {
+                      "type": "string",
+                      "description": "ION device serial number"
+                    },
+                    "model_name": {
+                      "type": "string",
+                      "description": "ION device model (e.g., ion 3200)"
+                    },
+                    "device_variables": {
+                      "type": "object",
+                      "description": "Device-level variables",
+                      "additionalProperties": true
+                    },
+                    "policy_variables": {
+                      "type": "object",
+                      "description": "Policy-level variables",
+                      "additionalProperties": true
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "minItems": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "minItems": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}
