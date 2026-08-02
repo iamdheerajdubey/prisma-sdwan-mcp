@@ -1,9 +1,10 @@
 # Prisma SD-WAN ION CLI MCP
 
-This sibling MCP server exposes one generic tool for read-only Palo Alto Prisma
-SD-WAN ION CLI commands. It uses Netmiko over SSH and opens a fresh session for
-each call. It does not use Ansible, local inventory, a vault, connection
-pooling, or per-command typed tools.
+This sibling MCP server exposes one generic tool for policy-approved Palo Alto
+Prisma SD-WAN ION CLI commands: the display-only `dump` and `inspect` families
+plus three exact active diagnostics (`ping`, `tcpping`, `dig`). It uses Netmiko
+over SSH and opens a fresh session for each call. It does not use Ansible,
+local inventory, a vault, connection pooling, or per-command typed tools.
 
 Research sources and the verification limits for the ION CLI are recorded in
 [RESEARCH.md](RESEARCH.md).
@@ -98,40 +99,62 @@ contain no executed command entries:
 
 Alongside the `run_commands` tool, the server exposes:
 
-- **Resource** `prisma-cli://policy` — the enforced allow-list (allowed/denied
-  command families, the output-filter grammar) as browsable JSON, generated
-  from the same [policy.py](prisma_sdwan_cli_mcp/policy.py) constants the
-  server actually enforces, so it can't drift from reality.
+- **Resource** `prisma-cli://policy` — the enforced allow-policy (allowed
+  families, allowed exact forms, the output-filter grammar) as browsable JSON,
+  generated from the same [policy.py](prisma_sdwan_cli_mcp/policy.py) constants
+  the server actually enforces, so it can't drift from reality. It lists no
+  denied commands, because there is no deny list to publish.
 - **Prompt** `troubleshoot_ion(symptom_hint)` — a canned starting checklist
   (check the policy, confirm the host key is already trusted, call
   `run_commands`, read each result independently) rather than a tool call
   itself.
 
-## Read-only enforcement
+## Command enforcement
+
+**Every command is denied by default.** A command runs only if it matches an
+approved form below. There is no deny list — anything absent from this section
+is already rejected, so nothing has to be enumerated to keep it out.
 
 The policy gate runs before the Netmiko connection is opened. It validates the
 whole command list and rejects the entire batch if any command is denied. A
 denied batch contains one structured `denied` result per submitted command,
 including the individual reason, and the backend is not invoked.
 
-The allow policy is a positive, fail-closed whitelist in
-[policy.py](prisma_sdwan_cli_mcp/policy.py), enforced at the **family** level
-rather than as a per-subcommand list. Palo Alto's ION CLI reference already
-classifies commands by family, not individually, so the policy trusts that
-same boundary instead of duplicating it as an ever-growing list of exact
-forms:
+The allow policy in [policy.py](prisma_sdwan_cli_mcp/policy.py) has two tiers.
 
-| ION command family | Policy | Evidence |
+**Families** — matched by root plus any safe arguments. Palo Alto's ION CLI
+reference already classifies these by family rather than individually, so the
+policy trusts that boundary instead of duplicating it as an ever-growing list
+of exact forms:
+
+| Family | Allowed shape | Evidence |
 | --- | --- | --- |
-| `dump` | Allowed for any subcommand/arguments matching the safe-argument character class, plus an optional single grep filter. | Palo Alto describes dump as displaying interface, device, and routing information, available to all user roles. |
-| `inspect` | Allowed for any subcommand/arguments matching the safe-argument character class, plus an optional single grep filter. | Palo Alto describes inspect as displaying information, available to Read Only roles. |
-| `clear` | Denied | Clears status. |
-| `config` | Denied | Configures interfaces, devices, and routing. |
-| `debug` | Denied | Includes disruptive operations such as reboot and shutdown. |
-| `show`, `display`, `get`, and unknown roots | Denied | Not documented as ION command families in the current reference. |
+| `dump` | Any subcommand/arguments matching the safe-argument character class, plus an optional single grep filter. | Palo Alto describes dump as displaying interface, device, and routing information, available to all user roles. |
+| `inspect` | Same. | Palo Alto describes inspect as displaying information, available to Read Only roles. |
 
 A bare `dump` or `inspect` with no arguments is denied — at least one
 trailing token is required, matching how every documented form is used.
+
+**Exact forms** — active diagnostics, matched whole. There is no `ping` family;
+only these three shapes pass:
+
+| Form | Notes |
+| --- | --- |
+| `ping <interface> <host> [args="-c 1..10"]` | `args` optional — ION defaults to 5 packets and terminates on its own. Only `-c` is accepted, bounded 1-10. |
+| `tcpping <interface> <host>:<port>` | Port range-checked 1-65535. |
+| `dig <interface> <dns-server> <hostname>` | |
+
+These three send real packets from the device, so `run_commands` does **not**
+advertise `readOnlyHint` or `idempotentHint`. They are documented on the
+reference's Debug Commands pages but are typed as bare roots with no `debug`
+prefix, so allowing them does not open that family: `debug reboot`, `debug
+shutdown`, `debug controller reachability`, `file remove`, `curl`, `ssh`,
+`tcpdump`, and `traceroute` all stay unmatched and denied, with tests asserting
+exactly that.
+
+The MCP does not model ION user roles. If the supplied credential lacks the
+privilege for a command, the device's own rejection is surfaced as that
+command's `status: error`.
 
 The official ION reference documents one output-filter form, `COMMAND | grep
 PATTERN`, with `grep` options `-i`, `-v`, `-w`, and `-F`. The policy allows at
@@ -143,15 +166,27 @@ of which specific subcommand follows.
 
 New `dump`/`inspect` subcommands the vendor documents in future ION releases
 need no code change here — they're covered automatically by the family
-match. Only touch `policy.py` if the family-level trust boundary itself needs
-to change (e.g. a documented family is reclassified), and update
-[RESEARCH.md](RESEARCH.md) plus `tests/test_policy.py` alongside it.
+match. The three exact diagnostic forms are the opposite: any change to their
+syntax, or any additional diagnostic, requires a new pattern in `policy.py`
+plus updates to [RESEARCH.md](RESEARCH.md) and `tests/test_policy.py`.
+
+## Completion detection
+
+A command runs for as long as it runs. Output is read until the **device prompt
+reappears**, discovered per session with `find_prompt()` (it is the hostname
+plus `#`, e.g. `I390ION1#`). Command duration is not the MCP's business —
+`dump` answers instantly and `ping` takes several seconds, and both are read to
+completion by the same rule.
+
+`DEFAULT_READ_TIMEOUT` (300s) is a hang ceiling only, for a session that has
+stopped responding and will never return a prompt; most MCP hosts give the
+caller no way to cancel an in-flight tool call. Hitting it yields `status:
+error`. Output is never truncated and reported as success.
 
 The current reference does not document ION pagination markers or terminal
-length settings, and no lab device was available for this implementation. The
-executor therefore handles common `--More--` and `(q)uit` prompts defensively
-with bounded timing reads. Treat that behavior as an explicit verification gap
-until a lab capture confirms the device prompt.
+length settings. The executor handles common `--More--` and `(q)uit` prompts
+defensively with a bounded page count. Treat that specific behavior as an
+explicit verification gap until a lab capture confirms the marker.
 
 The official SSH documentation verifies username/password login. Inline key
 material is also accepted because the caller contract allows password/key

@@ -10,7 +10,7 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .executor import execute_commands
-from .policy import ION_READ_ONLY_FAMILIES, validate_batch
+from .policy import ION_DIAGNOSTIC_FORMS, ION_READ_ONLY_FAMILIES, validate_batch
 
 
 mcp = FastMCP("Prisma SD-WAN ION CLI MCP Server")
@@ -71,9 +71,15 @@ def _validate_connection_inputs(
 
 @mcp.tool(
     annotations={
-        "readOnlyHint": True,
+        # Not read-only: alongside the display-only dump/inspect families the
+        # policy also permits ping/tcpping/dig, which send packets off the
+        # device. Nothing here can modify device configuration -- hence
+        # destructiveHint False -- but claiming readOnlyHint would tell
+        # clients to auto-approve a call that generates network traffic.
+        # Not idempotent either: two identical pings are two real probes.
+        "readOnlyHint": False,
         "destructiveHint": False,
-        "idempotentHint": True,
+        "idempotentHint": False,
         "openWorldHint": True,
     }
 )
@@ -87,10 +93,20 @@ def run_commands(
     private_key_passphrase: str | None = None,
     known_hosts_file: str | None = None,
 ) -> dict[str, Any]:
-    """Run a batch of read-only commands on one Prisma SD-WAN ION device.
+    """Run a batch of approved commands on one Prisma SD-WAN ION device.
+
+    Approved: the display-only `dump` and `inspect` families, plus the exact
+    active-diagnostic forms `ping`, `tcpping`, and `dig` — see the
+    prisma-cli://policy resource. The diagnostics send real packets from the
+    device. Everything else is denied.
 
     The policy gate validates every command before a Netmiko session is opened.
     Credentials are accepted only for this call and are never returned.
+
+    A command runs to completion however long it takes: output is read until
+    the device returns its prompt, not until the channel falls quiet. Only a
+    session that stops responding entirely eventually fails, and it fails as
+    status "error" — output is never truncated and reported as success.
 
     SSH host-key checking is strict: the device's host key must already be
     present in the known_hosts file (system default, or known_hosts_file if
@@ -127,23 +143,33 @@ def run_commands(
 
 @mcp.resource("prisma-cli://policy", mime_type="application/json")
 def policy_resource() -> str:
-    """The enforced read-only ION CLI command policy: which command
-    families are allowed, which are denied, and the one supported output
+    """The enforced ION CLI command policy: the allowed command families,
+    the allowed exact diagnostic forms, and the one supported output
     filter — generated from the same policy.py the server actually runs,
     so it can't drift out of sync with real enforcement.
     """
     return json.dumps(
         {
+            "model": (
+                "Every command is denied by default. A command runs only if it "
+                "matches an approved family or an approved exact form below. "
+                "Nothing is listed as denied because nothing needs to be: "
+                "anything absent from this document is already rejected."
+            ),
             "allowed_families": list(ION_READ_ONLY_FAMILIES),
-            "denied_families": ["clear", "config", "debug", "show", "display", "get"],
+            "allowed_exact_forms": list(ION_DIAGNOSTIC_FORMS),
             "output_filter": (
                 "COMMAND | grep [-i|-v|-w|-F] PATTERN — at most one, "
-                "immediately after a whitelisted command"
+                "immediately after a dump/inspect command"
             ),
             "notes": (
                 "A bare 'dump' or 'inspect' with no arguments is denied. "
-                "Enforcement is at the command-family level, not a list of "
-                "exact subcommands — see policy.py and RESEARCH.md."
+                "dump/inspect are enforced at the family level, not as a list "
+                "of exact subcommands. The diagnostics are the opposite: each "
+                "is one exact form matched whole, so 'debug' stays denied even "
+                "though the reference documents ping/tcpping/dig on its Debug "
+                "Commands pages. ping/tcpping/dig send real packets — they are "
+                "not read-only. See policy.py and RESEARCH.md."
             ),
         },
         indent=2,
@@ -160,12 +186,16 @@ def troubleshoot_ion(symptom_hint: str | None = None) -> str:
     """
     subject = f" for: {symptom_hint}" if symptom_hint else ""
     return (
-        f"Read-only ION CLI troubleshooting{subject}. Before calling "
+        f"ION CLI troubleshooting{subject}. Before calling "
         "run_commands:\n\n"
         "1. Check the prisma-cli://policy resource (or just try a command) "
-        "for the exact allowed families — only 'dump' and 'inspect' "
-        "subcommands pass; everything else is denied fail-closed, and a "
-        "denied batch never opens a connection.\n"
+        "for the exact allowed forms — 'dump' and 'inspect' subcommands pass, "
+        "as do the exact diagnostic forms 'ping <interface> <host>', "
+        "'tcpping <interface> <host>:<port>', and "
+        "'dig <interface> <dns-server> <hostname>'. Everything else is denied "
+        "fail-closed, and a denied batch never opens a connection. Prefer "
+        "dump/inspect first: they only read the device, whereas the three "
+        "diagnostics send real packets from it.\n"
         "2. Make sure the device's SSH host key is already in known_hosts "
         "(one prior interactive `ssh` login, or `ssh-keyscan`) — host-key "
         "checking is strict and an unknown/mismatched key fails the call "

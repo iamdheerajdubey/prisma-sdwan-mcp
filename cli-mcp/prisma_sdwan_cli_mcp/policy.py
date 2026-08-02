@@ -1,4 +1,4 @@
-"""Fail-closed read-only policy for the Palo Alto Prisma SD-WAN ION CLI.
+"""Fail-closed policy for the Palo Alto Prisma SD-WAN ION CLI.
 
 Palo Alto's ION CLI reference splits commands into families, not individual
 subcommands: `dump` and `inspect` are documented as display-only and
@@ -7,6 +7,14 @@ disruptive families. This policy trusts that documented family boundary
 directly instead of enumerating every known `dump`/`inspect` subcommand
 (that enumeration drifts out of date and duplicates a classification the
 vendor already makes at the family level). See RESEARCH.md.
+
+A second, much narrower group is allowed on top of that: the active
+diagnostics `ping`, `tcpping`, and `dig`. These are *not* family matches --
+each is one exact documented form, matched whole. They are documented on
+the reference's Debug Commands pages but are typed as bare roots with no
+`debug` prefix, so allowing them does not open the `debug` family: `debug
+reboot`, `debug shutdown`, `file remove`, `curl`, and `ssh` all remain
+unmatched and therefore denied.
 """
 
 from __future__ import annotations
@@ -31,6 +39,35 @@ ION_READ_ONLY_PATTERNS = tuple(
     )
     for family in ION_READ_ONLY_FAMILIES
 )
+
+# Range-checked after the match rather than in the pattern: a regex spelling
+# of 1-65535 is unreadable and easy to get subtly wrong.
+_PORT = r"(?P<port>[0-9]{1,5})"
+# ION's own default is 5 packets and the command terminates on its own, so
+# `args` is optional. Only `-c` is accepted, bounded, and nothing the caller
+# supplies is ever placed inside the quotes -- they are literals here.
+_PING_COUNT = r"(?:[1-9]|10)"
+
+# Exact documented forms, not families. Each is matched whole.
+ION_DIAGNOSTIC_PATTERNS = (
+    (
+        "ping",
+        re.compile(
+            rf'^ping {_SAFE_ARGUMENT} {_SAFE_ARGUMENT}'
+            rf'(?: args="-c {_PING_COUNT}")?$'
+        ),
+    ),
+    ("tcpping", re.compile(rf"^tcpping {_SAFE_ARGUMENT} {_SAFE_ARGUMENT}:{_PORT}$")),
+    ("dig", re.compile(rf"^dig {_SAFE_ARGUMENT} {_SAFE_ARGUMENT} {_SAFE_ARGUMENT}$")),
+)
+
+ION_DIAGNOSTIC_FORMS = (
+    'ping <interface> <host> [args="-c 1..10"]',
+    "tcpping <interface> <host>:<port>",
+    "dig <interface> <dns-server> <hostname>",
+)
+
+ION_COMMAND_PATTERNS = ION_READ_ONLY_PATTERNS + ION_DIAGNOSTIC_PATTERNS
 
 
 @dataclass(frozen=True)
@@ -79,20 +116,30 @@ def validate_command(command: object) -> CommandDecision:
             "control characters and newlines are not allowed",
         )
 
-    for family, pattern in ION_READ_ONLY_PATTERNS:
-        if pattern.fullmatch(command):
+    for family, pattern in ION_COMMAND_PATTERNS:
+        match = pattern.fullmatch(command)
+        if match is None:
+            continue
+        port = match.groupdict().get("port")
+        if port is not None and not 1 <= int(port) <= 65535:
             return CommandDecision(
                 command_text,
-                True,
-                f"matches ION read-only family '{family}'",
-                family,
+                False,
+                "port must be between 1 and 65535",
             )
+        return CommandDecision(
+            command_text,
+            True,
+            f"matches approved ION command form '{family}'",
+            family,
+        )
 
     return CommandDecision(
         command_text,
         False,
-        "command is not a recognized ION read-only command "
-        f"(must start with one of: {', '.join(ION_READ_ONLY_FAMILIES)})",
+        "command does not match any approved ION command form "
+        f"(families: {', '.join(ION_READ_ONLY_FAMILIES)}; "
+        f"exact forms: {'; '.join(ION_DIAGNOSTIC_FORMS)})",
     )
 
 
@@ -109,4 +156,4 @@ def validate_batch(commands: Iterable[object]) -> BatchDecision:
             decisions,
             "batch rejected because one or more commands failed the read-only policy",
         )
-    return BatchDecision(True, decisions, "all commands matched the ION read-only whitelist")
+    return BatchDecision(True, decisions, "all commands matched an approved ION command form")

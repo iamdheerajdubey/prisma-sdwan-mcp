@@ -12,7 +12,10 @@ class IntegrationSession:
         self.commands = []
         self.disconnected = False
 
-    def send_command_timing(self, command, **kwargs):
+    def find_prompt(self):
+        return "I390ION1#"
+
+    def send_command(self, command, **kwargs):
         self.commands.append(command)
         return self.outputs.pop(0)
 

@@ -8,7 +8,13 @@ from typing import Any, Callable
 
 
 DEFAULT_CONNECT_TIMEOUT = 10.0
-DEFAULT_READ_TIMEOUT = 30.0
+# A hang ceiling, not a pacing knob. Completion is decided by the device
+# prompt reappearing, so a command is free to take as long as it takes; this
+# only bounds a session that has stopped responding entirely (no prompt is
+# ever coming back). Hitting it is an error, never a truncated success --
+# most MCP clients give the caller no way to cancel an in-flight call, so
+# without some ceiling a wedged session would hang the tool forever.
+DEFAULT_READ_TIMEOUT = 300.0
 MAX_PAGINATION_PAGES = 100
 MAX_ERROR_LENGTH = 1000
 
@@ -146,22 +152,33 @@ def _has_pagination_marker(output: str) -> bool:
     return bool(_PAGINATION_MARKER.search(output))
 
 
+def _completion_pattern(connection: Any) -> str:
+    """Regex matching every way the device can signal 'your turn again'.
+
+    Either the shell prompt is back (command finished) or a pager is waiting
+    (more output pending). Reading until one of these -- rather than until
+    the channel happens to fall quiet -- is what makes command duration
+    irrelevant: `ping` emits a line per second and `dump` answers instantly,
+    and both are read to completion by the same rule.
+    """
+    prompt = str(connection.find_prompt()).strip()
+    if not prompt:
+        raise IONCommandError("device did not present a shell prompt")
+    return rf"(?:{re.escape(prompt)}|{_PAGINATION_MARKER.pattern})"
+
+
 def _send_command_with_pagination(
     connection: Any,
     command: str,
     *,
     read_timeout: float,
 ) -> str:
-    send_command_timing = getattr(connection, "send_command_timing", None)
-    if send_command_timing is None:
-        return str(connection.send_command(command))
-
+    expect = _completion_pattern(connection)
     output = str(
-        send_command_timing(
+        connection.send_command(
             command,
-            last_read=0.3,
+            expect_string=expect,
             read_timeout=read_timeout,
-            cmd_verify=False,
             strip_prompt=True,
             strip_command=True,
         )
@@ -171,12 +188,10 @@ def _send_command_with_pagination(
         if page_count >= MAX_PAGINATION_PAGES:
             raise IONCommandError("CLI output pagination exceeded the safety limit")
         output = _PAGINATION_MARKER.sub("", output)
-        write_channel = getattr(connection, "write_channel", None)
-        read_channel_timing = getattr(connection, "read_channel_timing", None)
-        if write_channel is None or read_channel_timing is None:
-            raise IONCommandError("CLI returned a pagination prompt without timing-read support")
-        write_channel(" ")
-        output += str(read_channel_timing(last_read=0.3, read_timeout=read_timeout))
+        connection.write_channel(" ")
+        output += str(
+            connection.read_until_pattern(pattern=expect, read_timeout=read_timeout)
+        )
         page_count += 1
     return output
 
