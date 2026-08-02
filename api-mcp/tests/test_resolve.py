@@ -4,8 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from prisma_sdwan_mcp import registry
+from prisma_sdwan_mcp.tools import network
 from prisma_sdwan_mcp.tools.resolve import (
-    FIND_CAP,
     find_app,
     find_element,
     find_machine,
@@ -115,18 +115,33 @@ def test_find_element_matches_substring(monkeypatch):
     assert payload["elements"][0]["site_id"] == "site-1"
 
 
-def test_find_app_caps_candidates_at_fifty(monkeypatch):
-    many = [{"id": f"app-{i}", "display_name": f"App {i}", "category": "custom"} for i in range(80)]
+def test_find_app_every_match_is_reachable_by_cursor(monkeypatch):
+    many = [{"id": f"app-{i}", "display_name": f"App {i}", "category": "custom"} for i in range(120)]
     fake = FakeClient(get={"appdefs": lambda *_: many})
     monkeypatch.setattr(registry, "client", fake)
 
-    payload = json.loads(find_app("app"))
+    # limit=50 forces paging, the old hard cap made items 51+ unreachable.
+    seen = []
+    cursor = None
+    pages = 0
+    while True:
+        payload = json.loads(find_app("app", cursor=cursor, limit=50))
+        assert payload["match_count"] == 120
+        assert payload["capped"] is False
+        seen.extend(item["id"] for item in payload["app_defs"])
+        pages += 1
+        if pages == 1:
+            assert payload["truncated"] is True
+            assert payload["refine_hint"]
+        cursor = payload.get("next_cursor")
+        if not cursor:
+            break
+        assert pages < 10, "cursor did not terminate"
 
-    assert payload["returned_count"] == FIND_CAP
-    assert payload["match_count"] == 80
-    assert payload["capped"] is True
-    assert payload["refine_hint"]
-    assert "refine your search" in payload["summary"]
+    assert len(seen) == 120
+    assert seen == [f"app-{i}" for i in range(120)]
+    assert "app-50" in seen  # the 51st match, unreachable under the old cap
+    assert "app-119" in seen
 
 
 def test_find_app_uncapped_when_under_fifty(monkeypatch):
@@ -176,6 +191,8 @@ def test_find_policy_set_skips_failing_families(monkeypatch):
 
     assert payload["returned_count"] == 2
     assert "priority" in payload["family_errors"]
+    assert payload["error"]["code"] == "partial_response"
+    assert "priority" in payload["error"]["family_errors"]
 
 
 def test_find_policy_set_survives_missing_endpoint(monkeypatch):
@@ -260,11 +277,35 @@ def test_resolve_path_wan_interface(monkeypatch):
 
     assert payload["paths"][0]["resolved"] is True
     assert payload["paths"][0]["kind"] == "wan_interface"
-    assert payload["paths"][0]["transport"] == "internet"
+    # The controller states no transport for this interface, so neither do we.
+    # This used to be hardcoded "internet", which was not merely unstated but
+    # wrong for an MPLS/private WAN interface.
+    assert payload["paths"][0]["transport"] == "unknown"
     assert payload["resolved_count"] == 1
 
 
-def test_resolve_path_anynet_link_private_wan(monkeypatch):
+def test_resolve_path_wan_interface_transport_is_controller_stated(monkeypatch):
+    fake = FakeClient(
+        get={
+            "waninterfaces": lambda *_: [
+                {
+                    "id": "if-9",
+                    "name": "wan-0/0",
+                    "element_id": "el-1",
+                    "type": "private-mpls",
+                }
+            ]
+        },
+        post={"topology": lambda *_: {"links": []}},
+    )
+    monkeypatch.setattr(registry, "client", fake)
+
+    payload = json.loads(resolve_path("site-1", "if-9"))
+
+    assert payload["paths"][0]["transport"] == "private-mpls"
+
+
+def test_resolve_path_anynet_link_transport_is_controller_stated(monkeypatch):
     links = [
         {
             "id": "link-1",
@@ -272,6 +313,7 @@ def test_resolve_path_anynet_link_private_wan(monkeypatch):
             "source_site_id": "site-1",
             "target_site_id": "site-2",
             "remote_site_id": "site-2",
+            "type": "private-anynet",
             "status": "up",
             "vpnlinks": [],
         }
@@ -286,7 +328,36 @@ def test_resolve_path_anynet_link_private_wan(monkeypatch):
 
     assert payload["paths"][0]["resolved"] is True
     assert payload["paths"][0]["kind"] == "anynet_link"
-    assert payload["paths"][0]["transport"] == "private_wan"
+    # Passed through verbatim, not translated and not re-derived.
+    assert payload["paths"][0]["transport"] == "private-anynet"
+
+
+def test_resolve_path_anynet_link_transport_unknown_when_controller_silent(monkeypatch):
+    links = [
+        {
+            "id": "link-1",
+            "path_id": "1730000000000000000",
+            # Differing endpoint sites used to be read as "private_wan"; the
+            # controller states no transport here, so it must stay unknown.
+            "source_site_id": "site-1",
+            "target_site_id": "site-2",
+            "remote_site_id": "site-2",
+            "status": "up",
+            "vpnlinks": [{"vpnlink_id": "vpn-7", "ep1_site_id": "site-1"}],
+        }
+    ]
+    fake = FakeClient(
+        get={"waninterfaces": lambda *_: []},
+        post={"topology": lambda *_: {"links": links}},
+    )
+    monkeypatch.setattr(registry, "client", fake)
+
+    link_payload = json.loads(resolve_path("site-1", "1730000000000000000"))
+    leg_payload = json.loads(resolve_path("site-1", "vpn-7"))
+
+    assert link_payload["paths"][0]["transport"] == "unknown"
+    assert leg_payload["paths"][0]["kind"] == "vpnlink_leg"
+    assert leg_payload["paths"][0]["transport"] == "unknown"
 
 
 def test_resolve_path_vpnlink_leg(monkeypatch):
@@ -360,3 +431,103 @@ def test_resolve_path_requires_both_ids(monkeypatch):
 
     assert payload["code"] == "invalid_argument"
     assert fake.calls == []
+
+
+# get_basenet_topology lives in tools/network.py; its leg-resumption tests are
+# here because this module owns them under the current file split.
+
+BASENET_TOPOLOGY = {
+    "nodes": [{"id": "site-1"}],
+    "links": [
+        {
+            "id": "b-1",
+            "path_id": "link-1",
+            "source_site_id": "site-1",
+            "target_site_id": "site-2",
+            "vpnlinks": ["leg-1", "leg-2", "leg-3"],
+        }
+    ],
+}
+
+
+def _basenet_client(resolved):
+    def status(vpnlink_id, **_kwargs):
+        resolved.append(vpnlink_id)
+        return {"active": True, "usable": True, "link_up": True, "ep1_element_id": "el-1"}
+
+    return FakeClient(
+        get={"vpnlinks_status": status},
+        post={"topology": lambda *_a, **_kw: BASENET_TOPOLOGY},
+    )
+
+
+def test_basenet_topology_declares_partial_leg_resolution(monkeypatch):
+    def status(vpnlink_id, **_kwargs):
+        if vpnlink_id == "leg-2":
+            return {"error": "upstream timeout", "status_code": 503}
+        return {"active": True, "usable": True, "link_up": True}
+
+    fake = FakeClient(
+        get={"vpnlinks_status": status},
+        post={"topology": lambda *_a, **_kw: BASENET_TOPOLOGY},
+    )
+    monkeypatch.setattr(network, "LEG_RESOLUTION_CAP", 3)
+    monkeypatch.setattr(registry, "client", fake)
+
+    payload = json.loads(network.get_basenet_topology("site-1"))
+
+    assert payload["error"]["code"] == "partial_response"
+    assert payload["error"]["leg_errors"]["leg-2"] == "upstream timeout"
+    assert any(entry.get("error") == "upstream timeout" for entry in payload["links"])
+
+
+def test_basenet_topology_leg_offset_returns_next_batch(monkeypatch):
+    monkeypatch.setattr(network, "LEG_RESOLUTION_CAP", 2)
+    resolved = []
+    monkeypatch.setattr(registry, "client", _basenet_client(resolved))
+
+    first = json.loads(network.get_basenet_topology("site-1"))
+
+    assert [entry["vpnlink_id"] for entry in first["links"]] == ["leg-1", "leg-2"]
+    assert first["leg_count"] == 2
+    assert first["leg_total"] == 3
+    assert first["leg_offset"] == 0
+    assert first["leg_resolution_capped"] is True
+    assert first["limits_applied"][0]["limit"] == "leg_resolution"
+    assert resolved == ["leg-1", "leg-2"]  # capped: no call for leg-3
+
+    second = json.loads(
+        network.get_basenet_topology("site-1", leg_offset=first["leg_offset"] + first["leg_count"])
+    )
+
+    assert [entry["vpnlink_id"] for entry in second["links"]] == ["leg-3"]
+    assert second["leg_count"] == 1
+    assert second["leg_total"] == 3
+    assert second["leg_offset"] == 2
+    assert second["leg_resolution_capped"] is False
+
+
+def test_basenet_topology_leg_offset_past_end_is_empty(monkeypatch):
+    monkeypatch.setattr(network, "LEG_RESOLUTION_CAP", 2)
+    resolved = []
+    monkeypatch.setattr(registry, "client", _basenet_client(resolved))
+
+    payload = json.loads(network.get_basenet_topology("site-1", leg_offset=99))
+
+    assert payload["links"] == []
+    assert payload["leg_count"] == 0
+    assert payload["leg_total"] == 3
+    assert payload["leg_resolution_capped"] is False
+    assert resolved == []
+
+
+@pytest.mark.parametrize("bad", [-1, True, "2", 1.5])
+def test_basenet_topology_rejects_invalid_leg_offset(monkeypatch, bad):
+    resolved = []
+    monkeypatch.setattr(registry, "client", _basenet_client(resolved))
+
+    payload = json.loads(network.get_basenet_topology("site-1", leg_offset=bad))
+
+    assert payload["code"] == "invalid_argument"
+    assert "leg_offset" in payload["message"]
+    assert resolved == []

@@ -3,19 +3,19 @@ from typing import Optional
 
 from .. import registry
 from ..formatting import (
-    INTERFACE_KEEP_FIELDS,
     WAN_INTERFACE_KEEP_FIELDS,
     _clean_response,
     build_envelope,
     collection_response,
     error_json,
     internal_error,
+    retry_details,
+    structured_error,
 )
+from ..limits import LEG_RESOLUTION_CAP, applied_limit
 
 
 mcp = registry.mcp
-
-LEG_RESOLUTION_CAP = 100
 
 
 def _validate_limit(limit: int | None, tool: str) -> str | None:
@@ -247,7 +247,7 @@ def get_interfaces(
             f"Interfaces for element '{element_id}' at site '{site_id}'",
             "interfaces",
             data,
-            INTERFACE_KEEP_FIELDS,
+            None,
             cursor,
             limit,
         )
@@ -422,33 +422,18 @@ def get_vpnlink_status(vpnlink_id: str) -> str:
                     tool,
                     404,
                 )
-            return error_json("upstream_error", data["error"], tool, data.get("status_code"))
-        item = data if isinstance(data, dict) else {}
-        keep = {
-            "active": item.get("active"),
-            "usable": item.get("usable"),
-            "link_up": item.get("link_up"),
-            "cipher": item.get("common_cipher"),
-            "keepalive": {
-                "ep1": {
-                    "interval": item.get("ep1_keep_alive_interval"),
-                    "failure_count": item.get("ep1_keep_alive_failure_count"),
-                },
-                "ep2": {
-                    "interval": item.get("ep2_keep_alive_interval"),
-                    "failure_count": item.get("ep2_keep_alive_failure_count"),
-                },
-            },
-        }
-        for prefix in ("ep1", "ep2"):
-            for suffix in ("site_id", "element_id", "interface_id"):
-                key = f"{prefix}_{suffix}"
-                keep[key] = item.get(key)
+            return error_json(
+                "upstream_error",
+                data["error"],
+                tool,
+                data.get("status_code"),
+                retry_details(data),
+            )
         return build_envelope(
             tool,
             f"VPN link leg '{vpnlink_id}' status",
             "vpnlink_status",
-            [keep],
+            [data] if isinstance(data, dict) else [],
         )
     except Exception as error:
         return internal_error(tool, error)
@@ -494,7 +479,13 @@ def get_vpnlink_state(vpnlink_id: str) -> str:
                     tool,
                     404,
                 )
-            return error_json("upstream_error", data["error"], tool, data.get("status_code"))
+            return error_json(
+                "upstream_error",
+                data["error"],
+                tool,
+                data.get("status_code"),
+                retry_details(data),
+            )
         item = data if isinstance(data, dict) else {}
         keep = {"enabled": item.get("enabled"), "al_id": item.get("al_id")}
         return build_envelope(
@@ -519,6 +510,7 @@ def get_basenet_topology(
     site_id: str,
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
+    leg_offset: int = 0,
 ) -> str:
     """Return site-scoped basenet (underlay) topology entries.
 
@@ -530,20 +522,31 @@ def get_basenet_topology(
     view provides (`element_id`, `source_elem_if_id`, `target_elem_if_id`,
     `anynet_link_id`, `in_use`). Entries are marked ``derived_from_anynet``.
 
+    Cost: this tool issues one controller call per vpnlink leg (an N+1 on the
+    per-leg status endpoint), so at most 100 legs are resolved per call. Use
+    ``leg_offset`` to resolve the next batch; ``leg_total`` reports how many
+    legs exist in total and ``leg_count`` how many this call resolved, so the
+    next offset is ``leg_offset + leg_count``.
+
     Args:
         site_id: Site or topology node ID.
-        cursor: Opaque cursor returned by a truncated response.
+        cursor: Opaque cursor returned by a truncated response (pages the
+            already-resolved entries; it does not resolve more legs).
         limit: Maximum entries to return.
+        leg_offset: Number of legs to skip before resolving, for retrieving
+            batches beyond the first 100.
 
     Returns:
         Incident basenet entries with element/interface fields, counts, and a
         summary distinguishing no paths from an ID absent from the topology.
-        Each entry's ``anynet_link_id`` is the field to match a
+        ``leg_resolution_capped`` is true when legs remain unresolved beyond
+        this batch. Each entry's ``anynet_link_id`` is the field to match a
         ``NETWORK_ANYNETLINK_DOWN``-style alert's ``anynetlink_id`` against —
         it is a different identifier from ``path_id`` on the same link.
 
     Examples:
         - get_basenet_topology(site_id="site123")
+        - get_basenet_topology(site_id="site123", leg_offset=100)
     """
     tool = "get_basenet_topology"
     site_id = site_id.strip() if site_id else ""
@@ -552,6 +555,8 @@ def get_basenet_topology(
     invalid = _validate_limit(limit, tool)
     if invalid:
         return invalid
+    if not isinstance(leg_offset, int) or isinstance(leg_offset, bool) or leg_offset < 0:
+        return error_json("invalid_argument", "leg_offset must be a non-negative integer", tool, 400)
     try:
         site_values = _site_aliases(site_id)
         data = registry.client.call_sdk_post(
@@ -566,47 +571,49 @@ def get_basenet_topology(
         site_present = any(
             _node_matches_site(node, alias) for alias in site_values for node in nodes
         ) or bool(incident)
-        entries = []
-        leg_resolution_capped = False
-        resolved_legs = 0
+        # Enumerate every leg first (free, in-memory) so the batch we resolve
+        # is a slice of a known total rather than a silent truncation.
+        legs = []
         for link in incident:
             if not isinstance(link, dict):
                 continue
             anynet_link_id = link.get("path_id") or link.get("id")
             for leg in link.get("vpnlinks", []) or []:
                 leg_id = leg if isinstance(leg, str) else (leg.get("vpnlink_id") or leg.get("id"))
-                if leg_id is None:
-                    continue
-                if resolved_legs >= LEG_RESOLUTION_CAP:
-                    leg_resolution_capped = True
-                    continue
-                resolved_legs += 1
-                status = registry.client.call_sdk(
-                    registry.client.sdk.get.vpnlinks_status, leg_id, api_version="v2.2"
-                )
-                if isinstance(status, dict) and "error" in status:
-                    entries.append(
-                        {
-                            "vpnlink_id": str(leg_id),
-                            "anynet_link_id": anynet_link_id,
-                            "error": status["error"],
-                        }
-                    )
-                    continue
-                item = status if isinstance(status, dict) else {}
+                if leg_id is not None:
+                    legs.append((anynet_link_id, leg_id))
+        batch = legs[leg_offset : leg_offset + LEG_RESOLUTION_CAP]
+        leg_resolution_capped = leg_offset + len(batch) < len(legs)
+        entries = []
+        leg_errors = {}
+        for anynet_link_id, leg_id in batch:
+            status = registry.client.call_sdk(
+                registry.client.sdk.get.vpnlinks_status, leg_id, api_version="v2.2"
+            )
+            if isinstance(status, dict) and "error" in status:
                 entries.append(
                     {
                         "vpnlink_id": str(leg_id),
                         "anynet_link_id": anynet_link_id,
-                        "element_id": item.get("ep1_element_id") or item.get("ep2_element_id"),
-                        "source_elem_if_id": item.get("ep1_interface_id"),
-                        "target_elem_if_id": item.get("ep2_interface_id"),
-                        "in_use": item.get("active"),
-                        "active": item.get("active"),
-                        "usable": item.get("usable"),
-                        "link_up": item.get("link_up"),
+                        "error": status["error"],
                     }
                 )
+                leg_errors[str(leg_id)] = status["error"]
+                continue
+            item = status if isinstance(status, dict) else {}
+            entries.append(
+                {
+                    "vpnlink_id": str(leg_id),
+                    "anynet_link_id": anynet_link_id,
+                    "element_id": item.get("ep1_element_id") or item.get("ep2_element_id"),
+                    "source_elem_if_id": item.get("ep1_interface_id"),
+                    "target_elem_if_id": item.get("ep2_interface_id"),
+                    "in_use": item.get("active"),
+                    "active": item.get("active"),
+                    "usable": item.get("usable"),
+                    "link_up": item.get("link_up"),
+                }
+            )
         summary = (
             f"Site '{site_id}' is not present in the topology"
             if not site_present
@@ -614,6 +621,25 @@ def get_basenet_topology(
             if entries
             else f"No basenet legs found for site '{site_id}'"
         )
+        extra = {
+            "site_present": site_present,
+            "anynet_link_count": len(incident),
+            "leg_count": len(entries),
+            "leg_total": len(legs),
+            "leg_offset": leg_offset,
+            "leg_resolution_capped": leg_resolution_capped,
+            "derived_from_anynet": True,
+        }
+        if leg_resolution_capped:
+            extra["limits_applied"] = [applied_limit("leg_resolution")]
+        partial_error = None
+        if leg_errors and entries:
+            partial_error = structured_error(
+                "partial_response",
+                "one or more basenet leg lookups failed",
+                tool,
+                details={"leg_errors": leg_errors},
+            )
         return build_envelope(
             tool,
             summary,
@@ -621,13 +647,8 @@ def get_basenet_topology(
             entries,
             cursor=cursor,
             limit=limit,
-            extra={
-                "site_present": site_present,
-                "anynet_link_count": len(incident),
-                "leg_count": len(entries),
-                "leg_resolution_capped": leg_resolution_capped,
-                "derived_from_anynet": True,
-            },
+            extra=extra,
+            error=partial_error,
         )
     except Exception as error:
         return internal_error(tool, error)

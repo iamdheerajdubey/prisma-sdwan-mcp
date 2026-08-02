@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 import re
 from typing import Any, Callable
 
@@ -17,6 +18,39 @@ DEFAULT_CONNECT_TIMEOUT = 10.0
 DEFAULT_READ_TIMEOUT = 300.0
 MAX_PAGINATION_PAGES = 100
 MAX_ERROR_LENGTH = 1000
+# Size ceiling, unrelated to the read timeout above: a single `dump` can emit
+# megabytes, and an MCP client has to fit the reply in its context window.
+# Matches the sibling api-mcp default (PRISMA_MCP_MAX_RESPONSE_BYTES).
+DEFAULT_MAX_OUTPUT_BYTES = 40960
+
+
+def get_max_output_bytes() -> int:
+    raw_value = os.getenv("PRISMA_CLI_MCP_MAX_OUTPUT_BYTES")
+    if raw_value is None:
+        return DEFAULT_MAX_OUTPUT_BYTES
+    try:
+        value = int(raw_value)
+    except ValueError:
+        return DEFAULT_MAX_OUTPUT_BYTES
+    return value if value > 0 else DEFAULT_MAX_OUTPUT_BYTES
+
+
+def _truncate_output(output: str, max_bytes: int) -> tuple[str, int, bool]:
+    """Return (kept head, total byte size, whether anything was dropped).
+
+    Keeps the head: the start of a dump carries the header and column
+    context. Cuts on a line boundary when one is close to the cap, and
+    decodes with errors="ignore" so a multi-byte character is never split.
+    """
+    encoded = output.encode("utf-8")
+    total_bytes = len(encoded)
+    if total_bytes <= max_bytes:
+        return output, total_bytes, False
+    head = encoded[:max_bytes]
+    newline = head.rfind(b"\n")
+    if newline >= max_bytes - max(1, max_bytes // 10):
+        head = head[:newline]
+    return head.decode("utf-8", errors="ignore"), total_bytes, True
 
 _PAGINATION_MARKER = re.compile(r"--More--|\(q\)uit", re.IGNORECASE)
 # Anchored to the first line only (no re.MULTILINE/search over the whole
@@ -125,11 +159,19 @@ def build_connection_kwargs(
 
 
 def _safe_error_message(error: BaseException, secrets: tuple[str | None, ...]) -> str:
+    return _safe_error_message_details(error, secrets)[0]
+
+
+def _safe_error_message_details(
+    error: BaseException,
+    secrets: tuple[str | None, ...],
+) -> tuple[str, bool]:
     message = str(error) or error.__class__.__name__
     for secret in secrets:
         if secret:
             message = message.replace(secret, "[redacted]")
-    return message[:MAX_ERROR_LENGTH]
+    truncated = len(message) > MAX_ERROR_LENGTH
+    return message[:MAX_ERROR_LENGTH], truncated
 
 
 def _is_authentication_error(error: BaseException) -> bool:
@@ -201,8 +243,9 @@ def _command_result(
     command: str,
     *,
     read_timeout: float,
+    max_output_bytes: int,
     secrets: tuple[str | None, ...],
-) -> dict[str, str]:
+) -> dict[str, Any]:
     try:
         output = _send_command_with_pagination(
             connection,
@@ -210,15 +253,27 @@ def _command_result(
             read_timeout=read_timeout,
         )
     except Exception as error:
-        return {
+        message, error_truncated = _safe_error_message_details(error, secrets)
+        result = {
             "command": command,
             "status": "error",
-            "error": _safe_error_message(error, secrets),
+            "error": message,
         }
+        if error_truncated:
+            result["error_truncated"] = True
+        return result
 
+    # Per command, so one oversized command cannot starve its batch siblings.
+    output, total_bytes, truncated = _truncate_output(output, max_output_bytes)
     if _is_device_error(output):
-        return {"command": command, "status": "error", "error": output}
-    return {"command": command, "status": "ok", "output": output}
+        result: dict[str, Any] = {"command": command, "status": "error", "error": output}
+    else:
+        result = {"command": command, "status": "ok", "output": output}
+    result["truncated"] = truncated
+    if truncated:
+        result["output_bytes"] = len(output.encode("utf-8"))
+        result["output_bytes_total"] = total_bytes
+    return result
 
 
 def execute_commands(
@@ -233,8 +288,11 @@ def execute_commands(
     connect_timeout: float = DEFAULT_CONNECT_TIMEOUT,
     read_timeout: float = DEFAULT_READ_TIMEOUT,
     known_hosts_file: str | None = None,
+    max_output_bytes: int | None = None,
     connection_factory: ConnectionFactory | None = None,
 ) -> dict[str, Any]:
+    if max_output_bytes is None or max_output_bytes <= 0:
+        max_output_bytes = get_max_output_bytes()
     secrets = (password, private_key, private_key_passphrase)
     connection_kwargs: dict[str, Any] = {}
     connection = None
@@ -260,12 +318,16 @@ def execute_commands(
                 error_type = "authentication"
             else:
                 error_type = "connection"
+            message, error_truncated = _safe_error_message_details(error, secrets)
+            error_payload = {
+                "type": error_type,
+                "message": message,
+            }
+            if error_truncated:
+                error_payload["error_truncated"] = True
             return {
                 "status": "error",
-                "error": {
-                    "type": error_type,
-                    "message": _safe_error_message(error, secrets),
-                },
+                "error": error_payload,
                 "results": [],
             }
 
@@ -276,6 +338,7 @@ def execute_commands(
                     connection,
                     command,
                     read_timeout=read_timeout,
+                    max_output_bytes=max_output_bytes,
                     secrets=secrets,
                 )
                 for command in commands

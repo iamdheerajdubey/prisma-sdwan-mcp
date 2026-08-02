@@ -69,16 +69,48 @@ an interior line is not reclassified as an error:
 		{
 			"command": "dump interface status all",
 			"status": "ok",
-			"output": "..."
+			"output": "...",
+			"truncated": false
 		},
 		{
 			"command": "inspect wanpaths all",
 			"status": "error",
-			"error": "Invalid command ..."
+			"error": "Invalid command ...",
+			"truncated": false
 		}
 	]
 }
 ```
+
+## Output size cap
+
+Each command's output is capped at 40960 bytes, matching the sibling
+api-mcp default. Override it with the `PRISMA_CLI_MCP_MAX_OUTPUT_BYTES`
+environment variable (a missing, non-integer, or non-positive value falls
+back to the default), or per call with the `max_output_bytes` argument of
+`execute_commands`. The cap is applied **per command**, so one oversized
+`dump` cannot starve the other commands in the same batch.
+
+Truncation is always declared, never silent. Every executed result carries
+`truncated`. When it is `true`, only the head of the output is present — the
+start of a dump carries its header and column context — and the result also
+carries `output_bytes` (returned) and `output_bytes_total` (produced by the
+device):
+
+```json
+{
+	"command": "dump interface status all",
+	"status": "ok",
+	"output": "...",
+	"truncated": true,
+	"output_bytes": 40953,
+	"output_bytes_total": 1048576
+}
+```
+
+The status stays `ok`: unlike a wedged session, the data is valid, just
+large. The cut lands on a UTF-8 character boundary, and on a line boundary
+when one is near the cap.
 
 Connection, authentication, and host-key failures are batch-level errors
 (`error.type` is `"connection"`, `"authentication"`, or `"host_key"`) and
@@ -181,7 +213,8 @@ completion by the same rule.
 `DEFAULT_READ_TIMEOUT` (300s) is a hang ceiling only, for a session that has
 stopped responding and will never return a prompt; most MCP hosts give the
 caller no way to cancel an in-flight tool call. Hitting it yields `status:
-error`. Output is never truncated and reported as success.
+error`. A slow command is never cut short and reported as success — the only
+truncation in the server is the size cap above, and it always says so.
 
 The current reference does not document ION pagination markers or terminal
 length settings. The executor handles common `--More--` and `(q)uit` prompts

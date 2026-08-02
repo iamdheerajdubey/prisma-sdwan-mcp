@@ -4,9 +4,6 @@ from typing import Optional
 
 from .. import registry
 from ..formatting import (
-    EVENT_KEEP_FIELDS,
-    FLOW_KEEP_FIELDS,
-    INTERFACE_STATUS_KEEP_FIELDS,
     build_envelope,
     collection_response,
     error_json,
@@ -14,6 +11,15 @@ from ..formatting import (
     monitor_body,
     monitor_metrics_body,
     single_response,
+)
+from ..limits import (
+    ALARM_LIMIT_CAP,
+    EVENT_LIMIT_CAP,
+    FLOW_DIGEST_SAMPLE_CAP,
+    RAW_FLOW_LIMIT_CAP,
+    RELATIVE_HOURS_CAP,
+    TOP_TALKERS_LIMIT,
+    applied_limit,
 )
 
 
@@ -109,17 +115,90 @@ def _validate_limit(limit: int | None, tool: str) -> str | None:
 
 
 def _validate_hours(hours: int | float, tool: str) -> str | None:
-    if isinstance(hours, bool) or not isinstance(hours, (int, float)) or hours <= 0 or hours > 168:
-        return error_json("invalid_argument", "hours must be greater than 0 and no more than 168", tool, 400)
+    if (
+        isinstance(hours, bool)
+        or not isinstance(hours, (int, float))
+        or hours <= 0
+        or hours > RELATIVE_HOURS_CAP
+    ):
+        return error_json(
+            "invalid_argument",
+            f"hours must be greater than 0 and no more than {RELATIVE_HOURS_CAP}",
+            tool,
+            400,
+        )
     return None
+
+
+TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.000Z"
 
 
 def _window(hours: int | float) -> tuple[str, str, int]:
     end = datetime.now(timezone.utc)
     start = end - timedelta(hours=hours)
     interval = max(60, int(hours * 3600 / 60))
-    time_format = "%Y-%m-%dT%H:%M:%S.000Z"
-    return start.strftime(time_format), end.strftime(time_format), interval
+    return start.strftime(TIME_FORMAT), end.strftime(TIME_FORMAT), interval
+
+
+def _parse_iso(value) -> datetime | None:
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _resolve_window(
+    hours: int | float,
+    start_time: Optional[str],
+    end_time: Optional[str],
+    tool: str,
+) -> str | tuple[str, str, int, dict]:
+    """Resolve an explicit window or fall back to the relative ``hours`` lookback.
+
+    Returns ``(start, end, interval, window)`` or an error JSON string.
+    """
+    if start_time is None and end_time is None:
+        invalid = _validate_hours(hours, tool)
+        if invalid:
+            return invalid
+        start, end, interval = _window(hours)
+        source = "relative_hours"
+    else:
+        if start_time is None or end_time is None:
+            return error_json(
+                "invalid_argument",
+                "start_time and end_time must both be provided when either is used",
+                tool,
+                400,
+            )
+        parsed_start = _parse_iso(start_time)
+        parsed_end = _parse_iso(end_time)
+        for label, parsed in (("start_time", parsed_start), ("end_time", parsed_end)):
+            if parsed is None:
+                return error_json(
+                    "invalid_argument",
+                    f"{label} must be a parseable ISO 8601 timestamp",
+                    tool,
+                    400,
+                )
+        if parsed_start >= parsed_end:
+            return error_json("invalid_argument", "start_time must be earlier than end_time", tool, 400)
+        start = parsed_start.strftime(TIME_FORMAT)
+        end = parsed_end.strftime(TIME_FORMAT)
+        interval = max(60, int((parsed_end - parsed_start).total_seconds() / 60))
+        source = "explicit"
+    return start, end, interval, {"start_time": start, "end_time": end, "source": source}
+
+
+def _window_phrase(hours: int | float, window: dict) -> str:
+    if window["source"] == "explicit":
+        return f"from {window['start_time']} to {window['end_time']}"
+    return f"over the last {hours} hour(s)"
 
 
 def _items(data):
@@ -332,9 +411,17 @@ def _scoping_payload(
     last: Optional[int],
 ) -> str | dict:
     if last is not None and (
-        isinstance(last, bool) or not isinstance(last, int) or last < 1 or last > 100
+        isinstance(last, bool)
+        or not isinstance(last, int)
+        or last < 1
+        or last > EVENT_LIMIT_CAP
     ):
-        return error_json("invalid_argument", "last must be between 1 and 100", tool, 400)
+        return error_json(
+            "invalid_argument",
+            f"last must be between 1 and {EVENT_LIMIT_CAP}",
+            tool,
+            400,
+        )
     payload: dict = {
         "severity": severities,
         "limit": {"count": capped, "sort_on": "time", "sort_order": "descending"},
@@ -403,11 +490,13 @@ def get_events(
         last: Override the requested event count (1 to 100).
 
     Returns:
-        A compact, projected event collection. An unwindowed call only
-        returns the most recent ``limit`` records and can miss an incident
-        entirely if other events happened since — for incident
-        investigation, pass start_time/end_time windowed tightly around the
-        time of interest rather than relying on the default limit.
+        A compact, unprojected event collection. At the 40960-byte default, a
+        live capture on 2026-08-02 fit 65 records on the first page and 35 on
+        the second for 100 total records; record size varies by event. An
+        unwindowed call only returns the most recent ``limit`` records and can
+        miss an incident entirely if other events happened since — for
+        incident investigation, pass start_time/end_time windowed tightly
+        around the time of interest rather than relying on the default limit.
 
     Examples:
         - get_events()
@@ -417,7 +506,7 @@ def get_events(
     tool = "get_events"
     if limit < 1:
         return error_json("invalid_limit", "limit must be at least 1", tool, 400)
-    capped = min(limit, 100)
+    capped = min(limit, EVENT_LIMIT_CAP)
     payload = _scoping_payload(
         tool,
         ["critical", "major", "minor"],
@@ -436,7 +525,19 @@ def get_events(
             registry.client.sdk.post.events_query,
             payload,
         )
-        return collection_response(tool, f"Recent events (up to {capped})", "events", data, EVENT_KEEP_FIELDS, cursor, limit)
+        return collection_response(
+            tool,
+            f"Recent events (up to {capped})",
+            "events",
+            data,
+            cursor=cursor,
+            limit=limit,
+            extra=(
+                {"limits_applied": [applied_limit("events_limit")]}
+                if limit > EVENT_LIMIT_CAP and last is None
+                else None
+            ),
+        )
     except Exception as error:
         return internal_error(tool, error)
 
@@ -473,11 +574,13 @@ def get_alarms(
         last: Override the requested alarm count (1 to 100).
 
     Returns:
-        A compact, projected alarm collection. An unwindowed call only
-        returns the most recent ``limit`` records and can miss an incident
-        entirely — window start_time/end_time tightly around the time of
-        interest. An alarm's ``cleared: false`` means it is still open as of
-        this query.
+        A compact, unprojected alarm collection. At the 40960-byte default, a
+        live capture on 2026-08-02 fit 65 records on the first page and 35 on
+        the second for 100 total records; record size varies by alarm. An
+        unwindowed call only returns the most recent ``limit`` records and can
+        miss an incident entirely — window start_time/end_time tightly around
+        the time of interest. An alarm's ``cleared: false`` means it is still
+        open as of this query.
 
     Examples:
         - get_alarms()
@@ -487,7 +590,7 @@ def get_alarms(
     tool = "get_alarms"
     if limit < 1:
         return error_json("invalid_limit", "limit must be at least 1", tool, 400)
-    capped = min(limit, 100)
+    capped = min(limit, ALARM_LIMIT_CAP)
     payload = _scoping_payload(
         tool,
         ["major", "critical"],
@@ -506,7 +609,19 @@ def get_alarms(
             registry.client.sdk.post.events_query,
             payload,
         )
-        return collection_response(tool, f"Recent alarms (up to {capped})", "alarms", data, EVENT_KEEP_FIELDS, cursor, limit)
+        return collection_response(
+            tool,
+            f"Recent alarms (up to {capped})",
+            "alarms",
+            data,
+            cursor=cursor,
+            limit=limit,
+            extra=(
+                {"limits_applied": [applied_limit("alarms_limit")]}
+                if limit > ALARM_LIMIT_CAP and last is None
+                else None
+            ),
+        )
     except Exception as error:
         return internal_error(tool, error)
 
@@ -565,7 +680,6 @@ def get_interface_status(
                 f"Interface status for '{interface_id}'",
                 "interfaces",
                 [data],
-                INTERFACE_STATUS_KEEP_FIELDS,
             )
 
         interfaces = registry.client.call_sdk(registry.client.sdk.get.interfaces, site_id, element_id)
@@ -594,7 +708,6 @@ def get_interface_status(
             f"Interface status for element '{element_id}'",
             "interfaces",
             records,
-            INTERFACE_STATUS_KEEP_FIELDS,
         )
     except Exception as error:
         return internal_error(tool, error)
@@ -619,6 +732,8 @@ def get_flows(
     element_id: Optional[str] = None,
     path_id: Optional[str] = None,
     waninterface_id: Optional[str] = None,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
 ) -> str:
     """Retrieve flow records or a summary digest for a site and time window.
 
@@ -641,13 +756,26 @@ def get_flows(
         element_id: Element ID filter, applied server-side.
         path_id: Path ID filter, applied server-side.
         waninterface_id: WAN interface ID filter, applied server-side.
+        start_time: ISO 8601 start of an exact window. Must be given with
+            end_time; takes precedence over ``hours``. The 168-hour ceiling
+            does not apply to an explicit window — controller retention is
+            the only limit.
+        end_time: ISO 8601 end of an exact window. Must be given with
+            start_time.
 
     Returns:
         A summary digest (default) or a compact, budget-capped raw flow
-        collection.
+        collection. At the 40960-byte default, a live 200-record sample on
+        2026-08-02 fit 14-20 unprojected records per cursor page and completed
+        in 13 pages; record shape changes the capacity. The resolved window is
+        echoed back under ``window``.
+        In digest mode ``digest_complete``/``digest_sample_size``/
+        ``digest_sample_limit`` state whether the figures cover the whole
+        window or only a truncated sample.
 
     Examples:
         - get_flows(site_id="site123")
+        - get_flows(site_id="site123", start_time="2026-07-30T01:00:00Z", end_time="2026-07-30T03:00:00Z")
         - get_flows(site_id="site123", app="app456")
         - get_flows(site_id="site123", raw=True, limit=50)
         - get_flows(site_id="site123", raw=True, page=2, limit=50)
@@ -656,11 +784,22 @@ def get_flows(
     site_id = site_id.strip() if site_id else ""
     if not site_id:
         return error_json("invalid_argument", "site_id is required and cannot be empty", tool, 400)
-    invalid = _validate_hours(hours, tool)
-    if invalid:
-        return invalid
-    if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1 or limit > 200:
-        return error_json("invalid_limit", "limit must be between 1 and 200", tool, 400)
+    resolved = _resolve_window(hours, start_time, end_time, tool)
+    if isinstance(resolved, str):
+        return resolved
+    start, end, _, window = resolved
+    if (
+        isinstance(limit, bool)
+        or not isinstance(limit, int)
+        or limit < 1
+        or limit > RAW_FLOW_LIMIT_CAP
+    ):
+        return error_json(
+            "invalid_limit",
+            f"limit must be between 1 and {RAW_FLOW_LIMIT_CAP}",
+            tool,
+            400,
+        )
     if page is not None and (isinstance(page, bool) or not isinstance(page, int) or page < 1):
         return error_json("invalid_argument", "page must be a positive integer", tool, 400)
     filters = {"site": [site_id]}
@@ -675,9 +814,8 @@ def get_flows(
             if not value:
                 return error_json("invalid_argument", f"{key} filter cannot be empty", tool, 400)
             filters[key] = [value]
-    start, end, _ = _window(hours)
     dest_page = page if page is not None else 1
-    request_limit = 1000 if not raw else limit
+    request_limit = FLOW_DIGEST_SAMPLE_CAP if not raw else limit
     try:
         data = registry.client.call_sdk_post(
             registry.client.sdk.post.monitor_flows,
@@ -698,17 +836,17 @@ def get_flows(
                 data,
             )
         flow_records = _flow_items(data)
+        phrase = _window_phrase(hours, window)
         if not raw:
-            return _flow_digest_response(tool, site_id, hours, flow_records, request_limit)
+            return _flow_digest_response(tool, site_id, phrase, flow_records, request_limit, window)
         return collection_response(
             tool,
-            f"Flows for site '{site_id}' over the last {hours} hour(s)",
+            f"Flows for site '{site_id}' {phrase}",
             "flows",
             flow_records,
-            FLOW_KEEP_FIELDS,
-            cursor,
-            limit,
-            extra={"raw": True, "page": dest_page},
+            cursor=cursor,
+            limit=limit,
+            extra={"raw": True, "page": dest_page, "window": window},
         )
     except Exception as error:
         return internal_error(tool, error)
@@ -717,17 +855,20 @@ def get_flows(
 def _flow_digest_response(
     tool: str,
     site_id: str,
-    hours: int,
+    phrase: str,
     records: list,
     fetched: int,
+    window: dict,
 ) -> str:
     by_app = Counter()
     by_path = Counter()
     by_action = Counter()
     talkers = {}
+    sample_size = 0
     for record in records:
         if not isinstance(record, dict):
             continue
+        sample_size += 1
         by_app[str(record.get("app_id") or record.get("fc_app_id") or "unknown")] += 1
         by_path[str(record.get("path_id") or "unknown")] += 1
         by_action[str(record.get("flow_action") or "unknown")] += 1
@@ -746,23 +887,44 @@ def _flow_digest_response(
         entry["bytes_c2s"] += c2s
         entry["bytes_s2c"] += s2c
         entry["total_bytes"] += c2s + s2c
-    top_talkers = sorted(talkers.values(), key=lambda item: item["total_bytes"], reverse=True)[:10]
+    top_talkers = sorted(
+        talkers.values(), key=lambda item: item["total_bytes"], reverse=True
+    )[:TOP_TALKERS_LIMIT]
     digest = {
         "total": len(records),
         "by_app": dict(sorted(by_app.items(), key=lambda pair: pair[1], reverse=True)),
         "by_path": dict(sorted(by_path.items(), key=lambda pair: pair[1], reverse=True)),
         "by_action": dict(sorted(by_action.items(), key=lambda pair: pair[1], reverse=True)),
         "top_talkers": top_talkers,
+        "top_talkers_limit": TOP_TALKERS_LIMIT,
     }
+    complete = len(records) < fetched
+    limits_applied = []
+    if not complete:
+        limits_applied.append(applied_limit("flow_digest_sample"))
+    if len(talkers) > TOP_TALKERS_LIMIT:
+        limits_applied.append(applied_limit("top_talkers"))
     extra = {
         "digest_mode": True,
         "digest": digest,
+        "digest_complete": complete,
+        "digest_sample_size": sample_size,
+        "digest_sample_limit": fetched,
+        "window": window,
     }
-    if len(records) >= fetched:
+    if limits_applied:
+        extra["limits_applied"] = limits_applied
+    summary = f"Flow digest for site '{site_id}' {phrase}: {len(records)} flow(s)"
+    if not complete:
         extra["digest_more_pages"] = True
+        summary += (
+            f". Truncated sample: the fetch returned the maximum {fetched} flow(s), so total,"
+            " by_app, by_path, by_action and the top_talkers ranking are computed from those"
+            f" {sample_size} flow(s) only and are not totals for the window"
+        )
     return build_envelope(
         tool,
-        f"Flow digest for site '{site_id}' over the last {hours} hour(s): {len(records)} flow(s)",
+        summary,
         "flows",
         [],
         extra=extra,
@@ -782,6 +944,8 @@ def get_link_metrics(
     hours: int = 1,
     element_id: Optional[str] = None,
     raw: bool = False,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
 ) -> str:
     """Retrieve bandwidth and link-quality metrics for a site.
 
@@ -794,6 +958,12 @@ def get_link_metrics(
         raw: When True, return raw per-series datapoints for the
             link-quality metrics (capped to the response budget) instead
             of the pivoted snapshots.
+        start_time: ISO 8601 start of an exact window. Must be given with
+            end_time; takes precedence over ``hours``. The 168-hour ceiling
+            does not apply to an explicit window — controller retention is
+            the only limit.
+        end_time: ISO 8601 end of an exact window. Must be given with
+            start_time. The link-quality snapshot is anchored at this time.
 
     Returns:
         Bandwidth series and per-WAN link-quality snapshots. This is
@@ -813,9 +983,10 @@ def get_link_metrics(
     site_id = site_id.strip() if site_id else ""
     if not site_id:
         return error_json("invalid_argument", "site_id is required and cannot be empty", tool, 400)
-    invalid = _validate_hours(hours, tool)
-    if invalid:
-        return invalid
+    resolved = _resolve_window(hours, start_time, end_time, tool)
+    if isinstance(resolved, str):
+        return resolved
+    start, end, _, window = resolved
     element_value = None
     if element_id is not None:
         element_value = element_id.strip()
@@ -824,7 +995,6 @@ def get_link_metrics(
     bandwidth_filter = {"site": [site_id]}
     if element_value:
         bandwidth_filter["element"] = [element_value]
-    start, end, _ = _window(hours)
     errors = {}
     try:
         bandwidth_result = registry.client.call_sdk_post(
@@ -881,11 +1051,12 @@ def get_link_metrics(
 
         return build_envelope(
             tool,
-            f"Link metrics for site '{site_id}' over the last {hours} hour(s)",
+            f"Link metrics for site '{site_id}' {_window_phrase(hours, window)}",
             "bandwidth",
             bandwidth_items,
             extra={
                 "link_quality": link_quality,
+                "window": window,
                 "snapshot_time": end,
                 "interval": LQM_INTERVAL,
                 "raw_datapoints": raw,
@@ -904,12 +1075,23 @@ def get_link_metrics(
         "openWorldHint": True,
     }
 )
-def get_probe_metrics(site_id: str, hours: int = 1) -> str:
+def get_probe_metrics(
+    site_id: str,
+    hours: int = 1,
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
+) -> str:
     """Retrieve synthetic endpoint-probe metrics for a site.
 
     Args:
         site_id: Site ID.
         hours: Lookback window in hours.
+        start_time: ISO 8601 start of an exact window. Must be given with
+            end_time; takes precedence over ``hours``. The 168-hour ceiling
+            does not apply to an explicit window — controller retention is
+            the only limit.
+        end_time: ISO 8601 end of an exact window. Must be given with
+            start_time. The probe snapshot is anchored at this time.
 
     Returns:
         Probe latency, jitter, and packet-loss snapshots, or an explanatory
@@ -927,10 +1109,10 @@ def get_probe_metrics(site_id: str, hours: int = 1) -> str:
     site_id = site_id.strip() if site_id else ""
     if not site_id:
         return error_json("invalid_argument", "site_id is required and cannot be empty", tool, 400)
-    invalid = _validate_hours(hours, tool)
-    if invalid:
-        return invalid
-    _, end, _ = _window(hours)
+    resolved = _resolve_window(hours, start_time, end_time, tool)
+    if isinstance(resolved, str):
+        return resolved
+    _, end, _, window = resolved
     try:
         probe_result = registry.client.call_sdk_post(
             registry.client.sdk.post.monitor_probe_point_metrics,
@@ -954,7 +1136,12 @@ def get_probe_metrics(site_id: str, hours: int = 1) -> str:
                 f"Probe metrics unavailable for site '{site_id}'",
                 "probes",
                 [],
-                extra={"snapshot_time": end, "interval": LQM_INTERVAL, "errors": {"probes": probe_result}},
+                extra={
+                    "window": window,
+                    "snapshot_time": end,
+                    "interval": LQM_INTERVAL,
+                    "errors": {"probes": probe_result},
+                },
             )
         probes = _pivot_probe_by_config(probe_result)
         summary = (
@@ -967,7 +1154,7 @@ def get_probe_metrics(site_id: str, hours: int = 1) -> str:
             summary,
             "probes",
             probes,
-            extra={"snapshot_time": end, "interval": LQM_INTERVAL},
+            extra={"window": window, "snapshot_time": end, "interval": LQM_INTERVAL},
         )
     except Exception as error:
         return internal_error(tool, error)

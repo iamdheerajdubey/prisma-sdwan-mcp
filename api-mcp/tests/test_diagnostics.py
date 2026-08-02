@@ -29,5 +29,6 @@ def test_internal_error_is_safe_and_logs_traceback(caplog):
         "message": "an unexpected server error occurred",
         "tool": "diagnostic_tool",
         "status_code": 500,
+        "retryable": True,
     }
     assert "secret internal detail" in caplog.text

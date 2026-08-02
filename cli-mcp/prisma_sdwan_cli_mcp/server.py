@@ -106,7 +106,15 @@ def run_commands(
     A command runs to completion however long it takes: output is read until
     the device returns its prompt, not until the channel falls quiet. Only a
     session that stops responding entirely eventually fails, and it fails as
-    status "error" — output is never truncated and reported as success.
+    status "error" — a slow command is never cut short and reported as success.
+
+    Each command's output is capped at 40960 bytes (override with the
+    PRISMA_CLI_MCP_MAX_OUTPUT_BYTES environment variable). The cap applies per
+    command, not per batch. Every "ok" result carries "truncated": a result
+    with "truncated": false is the device's complete output, while
+    "truncated": true means only the head is present and the result also
+    carries "output_bytes" (returned) and "output_bytes_total" (produced by
+    the device). Truncated output is never presented as complete.
 
     SSH host-key checking is strict: the device's host key must already be
     present in the known_hosts file (system default, or known_hosts_file if

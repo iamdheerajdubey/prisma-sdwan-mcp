@@ -2,12 +2,53 @@ import base64
 import binascii
 import json
 import logging
+from datetime import datetime, timezone
 from typing import Any, Callable, Iterable
 
 from .config import get_max_response_bytes
+from .limits import IDENTIFYING_VALUE_LIMIT, applied_limit
 
 
 LOGGER = logging.getLogger(__name__)
+
+ERROR_CODES = frozenset(
+    {
+        "invalid_argument",
+        "invalid_limit",
+        "invalid_cursor",
+        "invalid_budget",
+        "invalid_filename",
+        "invalid_element",
+        "not_found",
+        "schema_not_found",
+        "schema_validation_failed",
+        "upstream_error",
+        "internal_error",
+        "response_budget_exceeded",
+        "response_budget_too_small",
+        "item_too_large",
+        "historical_data_unavailable",
+        "rate_limited",
+        "unresolved_relationship",
+        "partial_response",
+    }
+)
+FROZEN_ENVELOPE_KEYS = (
+    "tool",
+    "summary",
+    "<typed_collection_key>",
+    "truncated",
+    "total_count",
+    "returned_count",
+    "retrieved_at",
+    "next_cursor",
+)
+CONTRACT_VERSION = "1.0.0"
+
+
+def _now_iso() -> str:
+    """ISO 8601 UTC, fixed width so it never changes an envelope's byte size."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 ELEMENT_KEEP_FIELDS = {
@@ -24,16 +65,27 @@ ELEMENT_KEEP_FIELDS = {
     "connected",
     "spoke_ha_config",
 }
+# Verified against a live tenant 2026-08-02. The previous list promised
+# city/country/latitude/longitude, none of which the controller sends -- the
+# real location data is in `address` and `location`. The policy-set-stack
+# bindings were being dropped despite being the site's actual policy attachment.
 SITE_KEEP_FIELDS = {
     "id",
     "name",
     "description",
     "admin_state",
     "element_cluster_role",
-    "city",
-    "country",
-    "latitude",
-    "longitude",
+    "address",
+    "location",
+    "service_binding",
+    "vrf_context_profile_id",
+    "network_policysetstack_id",
+    "priority_policysetstack_id",
+    "nat_policysetstack_id",
+    "perfmgmt_policysetstack_id",
+    "prefer_lan_default_over_wan_default_route",
+    "app_acceleration_enabled",
+    "branch_gateway",
 }
 MACHINE_KEEP_FIELDS = {
     "id",
@@ -48,31 +100,10 @@ MACHINE_KEEP_FIELDS = {
     "em_element_id",
     "tenant_id",
 }
-INTERFACE_KEEP_FIELDS = {
-    "id",
-    "name",
-    "interface_id",
-    "interface_name",
-    "type",
-    "state",
-    "status",
-    "ip_address",
-    "mac_address",
-    "element_id",
-    "site_id",
-    "admin_up",
-}
-INTERFACE_STATUS_KEEP_FIELDS = INTERFACE_KEEP_FIELDS | {
-    "operational_status",
-    "link_state",
-    "last_change",
-    "reason",
-    "health",
-    "interface_status",
-}
 WAN_INTERFACE_KEEP_FIELDS = {
     "id",
     "name",
+    "description",
     "network_id",
     "type",
     "cost",
@@ -83,76 +114,6 @@ WAN_INTERFACE_KEEP_FIELDS = {
     "link_bw_up",
     "link_bw_down",
     "label_id",
-}
-EVENT_KEEP_FIELDS = {
-    "id",
-    "event_id",
-    "time",
-    "timestamp",
-    "severity",
-    "type",
-    "category",
-    "message",
-    "site_id",
-    "element_id",
-    "standing",
-    "cleared",
-    "correlation_id",
-    "priority",
-}
-FLOW_KEEP_FIELDS = {
-    "id",
-    "flow_id",
-    "source_ip",
-    "destination_ip",
-    "source_port",
-    "destination_port",
-    "src_ip",
-    "dst_ip",
-    "src_port",
-    "dst_port",
-    "protocol",
-    "flow_start_time_ms",
-    "flow_end_time_ms",
-    "app_id",
-    "fc_app_id",
-    "path_id",
-    "path_type",
-    "element_id",
-    "waninterface_id",
-    "flow_direction",
-    "flow_action",
-    "network_policy_id",
-    "network_policy_set_id",
-    "priority_policy_id",
-    "priority_policy_set_id",
-    "sec_policy_actions",
-    "is_sec_policy_present",
-    "bytes_c2s",
-    "bytes_s2c",
-    "packets_c2s",
-    "packets_s2c",
-    "average_rtt",
-    "avg_jitter_c2s",
-    "avg_packet_loss_c2s",
-    "avg_mos_c2s",
-    "retransmit_bytes_c2s",
-    "retransmit_bytes_s2c",
-    "retransmit_pkts_c2s",
-    "retransmit_pkts_s2c",
-    "reset_c2s",
-    "reset_s2c",
-    "syn_c2s",
-    "syn_s2c",
-    "fin_c2s",
-    "fin_s2c",
-    "application",
-    "app_name",
-    "bytes",
-    "packets",
-    "start_time",
-    "end_time",
-    "site_id",
 }
 
 
@@ -221,10 +182,46 @@ def structured_error(
     message: str,
     tool: str,
     status_code: int | None = None,
+    details: dict[str, Any] | None = None,
 ) -> dict:
-    result = {"code": code, "message": message, "tool": tool}
+    if code not in ERROR_CODES:
+        raise ValueError(f"unknown error code: {code}")
+    if code == "upstream_error" and status_code == 429:
+        code = "rate_limited"
+    if code == "rate_limited":
+        retryable = True
+    elif code.startswith("invalid_") or code in {
+        "not_found",
+        "historical_data_unavailable",
+        "unresolved_relationship",
+        "partial_response",
+        "response_budget_exceeded",
+        "response_budget_too_small",
+        "item_too_large",
+    }:
+        retryable = False
+    else:
+        retryable = status_code is not None and 500 <= status_code <= 599
+    result = {
+        "code": code,
+        "message": message,
+        "tool": tool,
+        "retryable": retryable,
+    }
     if status_code is not None:
         result["status_code"] = status_code
+    if details:
+        # Reserved keys are never overwritable by caller-supplied details: an
+        # error object whose own code or retryable flag could be clobbered by
+        # an upstream payload is worse than no detail at all.
+        reserved = {"code", "message", "tool", "retryable", "status_code"}
+        result.update(
+            {
+                key: value
+                for key, value in details.items()
+                if value is not None and key not in reserved
+            }
+        )
     return result
 
 
@@ -233,8 +230,20 @@ def error_json(
     message: str,
     tool: str,
     status_code: int | None = None,
+    details: dict[str, Any] | None = None,
 ) -> str:
-    return compact_json(structured_error(code, message, tool, status_code))
+    return compact_json(structured_error(code, message, tool, status_code, details))
+
+
+def retry_details(data: Any) -> dict[str, Any]:
+    """Preserve retry accounting returned by the controller client."""
+    if not isinstance(data, dict):
+        return {}
+    return {
+        key: data[key]
+        for key in ("retry_count", "elapsed_seconds")
+        if key in data
+    }
 
 
 def internal_error(tool: str, error: Exception) -> str:
@@ -312,7 +321,7 @@ def decode_cursor(cursor: str | None, total_count: int, tool: str) -> tuple[int,
 
 def _identifying_fields(item: Any) -> dict:
     if not isinstance(item, dict):
-        return {"value": str(item)[:128]}
+        return {"value": str(item)[:IDENTIFYING_VALUE_LIMIT]}
     names = (
         "id",
         "name",
@@ -324,7 +333,7 @@ def _identifying_fields(item: Any) -> dict:
         "bgppeer_id",
     )
     result = {
-        name: str(item[name])[:128]
+        name: str(item[name])[:IDENTIFYING_VALUE_LIMIT]
         for name in names
         if name in item and item[name] is not None
     }
@@ -354,6 +363,7 @@ def _envelope(
         "truncated": truncated,
         "total_count": total_count,
         "returned_count": len(items),
+        "retrieved_at": _now_iso(),
     }
     if extra:
         payload.update(extra)
@@ -415,6 +425,7 @@ def build_envelope(
     cursor: str | None = None,
     limit: int | None = None,
     extra: dict | None = None,
+    error: dict | None = None,
 ) -> str:
     """Serialize a collection into a compact, budgeted, cursor-paginated envelope."""
     records = list(items)
@@ -430,6 +441,7 @@ def build_envelope(
     requested_end = len(records) if limit is None else min(len(records), start + limit)
     selected: list[Any] = []
     next_offset = start
+    budget_limited = False
     for index in range(start, requested_end):
         candidate = selected + [records[index]]
         candidate_payload = _envelope(
@@ -440,6 +452,7 @@ def build_envelope(
             start,
             index + 1,
             len(records),
+            error=error,
             extra=extra,
         )
         if len(compact_json(candidate_payload).encode("utf-8")) > response_budget:
@@ -447,10 +460,17 @@ def build_envelope(
                 return _oversized_item_response(
                     tool, summary, key, records[index], start, len(records), response_budget
                 )
+            budget_limited = True
             break
         selected = candidate
         next_offset = index + 1
 
+    final_extra = dict(extra or {})
+    if budget_limited:
+        applied = list(final_extra.get("limits_applied", []))
+        if not any(item.get("limit") == "response_bytes" for item in applied):
+            applied.append(applied_limit("response_bytes"))
+        final_extra["limits_applied"] = applied
     payload = _envelope(
         tool,
         summary,
@@ -459,12 +479,15 @@ def build_envelope(
         start,
         next_offset,
         len(records),
-        extra=extra,
+        error=error,
+        extra=final_extra or None,
     )
     serialized = compact_json(payload)
     if len(serialized.encode("utf-8")) <= response_budget:
         return serialized
-    if selected:
+    # only recurse while the retry limit stays valid; len(selected) == 1 would recurse
+    # with limit=0 and surface a confusing invalid_limit error instead of a budget one.
+    if len(selected) > 1:
         return build_envelope(
             tool,
             summary,
@@ -473,7 +496,8 @@ def build_envelope(
             response_budget,
             cursor,
             len(selected) - 1,
-            extra,
+            final_extra or None,
+            error,
         )
     return error_json("response_budget_too_small", "response budget is too small for an envelope", tool, 413)
 
@@ -497,7 +521,11 @@ def simple_collection_tool(
         data = fetch_one(item_id) if item_id and fetch_one else fetch_all()
         if isinstance(data, dict) and "error" in data:
             return error_json(
-                "upstream_error", data["error"], tool_name, data.get("status_code")
+                "upstream_error",
+                data["error"],
+                tool_name,
+                data.get("status_code"),
+                retry_details(data),
             )
         if item_id and fetch_one:
             payload = {"tool": tool_name, "summary": summary, "item": _clean_response(data)}
@@ -514,6 +542,7 @@ def simple_collection_tool(
             get_max_response_bytes(),
             cursor,
             limit,
+            None if projection is None else {"projected_fields": sorted(projection)},
         )
 
     collection_tool.__name__ = tool_name
@@ -531,6 +560,7 @@ def collection_response(
     limit: int | None = None,
     budget: int | None = None,
     extra: dict | None = None,
+    error: dict | None = None,
 ) -> str:
     if isinstance(data, dict) and "error" in data:
         return error_json(
@@ -538,8 +568,11 @@ def collection_response(
             data["error"],
             tool,
             data.get("status_code"),
+            retry_details(data),
         )
     records = as_items(data)
+    if projection is not None:
+        extra = {**(extra or {}), "projected_fields": sorted(projection)}
     return build_envelope(
         tool,
         summary,
@@ -549,6 +582,7 @@ def collection_response(
         cursor,
         limit,
         extra,
+        error,
     )
 
 
@@ -565,6 +599,7 @@ def single_response(
             data["error"],
             tool,
             data.get("status_code"),
+            retry_details(data),
         )
     payload = {
         "tool": tool,
@@ -573,6 +608,7 @@ def single_response(
         "truncated": False,
         "total_count": 1,
         "returned_count": 1,
+        "retrieved_at": _now_iso(),
     }
     response_budget = get_max_response_bytes() if budget is None else budget
     serialized = compact_json(payload)

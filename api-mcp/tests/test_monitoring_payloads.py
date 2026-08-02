@@ -89,6 +89,7 @@ def test_flows_digest_breakdowns_and_top_talkers(monkeypatch):
     assert digest["by_action"] == {"allow": 2, "BlockedByPolicy": 1}
     assert digest["top_talkers"][0]["src_ip"] == "10.0.0.1"
     assert digest["top_talkers"][0]["total_bytes"] == 600
+    assert digest["top_talkers_limit"] == 10
 
 
 def test_flows_raw_mode_returns_records_with_page(monkeypatch):
@@ -300,3 +301,151 @@ def test_link_metrics_raw_returns_datapoint_series(monkeypatch):
     assert payload["raw_datapoints"] is True
     assert fake._lqm_returned
     assert payload["link_quality"][0]["datapoints"] == [{"ts": "t1", "rtt_latency": 12}]
+
+
+EXPLICIT = {"start_time": "2026-07-30T01:00:00Z", "end_time": "2026-07-30T03:30:00Z"}
+NORMALIZED = ("2026-07-30T01:00:00.000Z", "2026-07-30T03:30:00.000Z")
+
+
+def test_explicit_window_forwarded_and_echoed_for_flows(monkeypatch):
+    fake = FakeClient()
+    monkeypatch.setattr(registry, "client", fake)
+
+    payload = json.loads(get_flows("site-1", **EXPLICIT))
+
+    assert (fake.body["start_time"], fake.body["end_time"]) == NORMALIZED
+    assert payload["window"] == {
+        "start_time": NORMALIZED[0],
+        "end_time": NORMALIZED[1],
+        "source": "explicit",
+    }
+
+
+def test_explicit_window_forwarded_for_link_and_probe_metrics(monkeypatch):
+    fake = TelemetryClient()
+    monkeypatch.setattr(registry, "client", fake)
+
+    link = json.loads(get_link_metrics("site-1", **EXPLICIT))
+    probe = json.loads(get_probe_metrics("site-1", **EXPLICIT))
+
+    assert (fake.bodies["metrics"]["start_time"], fake.bodies["metrics"]["end_time"]) == NORMALIZED
+    # point-metric endpoints are anchored at the window end
+    assert fake.bodies["lqm"]["start_time"] == NORMALIZED[1]
+    assert fake.bodies["probe"]["start_time"] == NORMALIZED[1]
+    assert link["window"]["source"] == "explicit"
+    assert probe["window"] == {
+        "start_time": NORMALIZED[0],
+        "end_time": NORMALIZED[1],
+        "source": "explicit",
+    }
+    assert link["snapshot_time"] == NORMALIZED[1]
+
+
+def test_explicit_window_ignores_the_168_hour_ceiling(monkeypatch):
+    fake = FakeClient()
+    monkeypatch.setattr(registry, "client", fake)
+
+    payload = json.loads(
+        get_flows("site-1", start_time="2026-01-01T00:00:00Z", end_time="2026-06-01T00:00:00Z")
+    )
+
+    assert payload["window"]["source"] == "explicit"
+    assert fake.body["start_time"] == "2026-01-01T00:00:00.000Z"
+
+
+def test_window_rejects_partial_malformed_and_inverted_values(monkeypatch):
+    fake = FakeClient()
+    telemetry = TelemetryClient()
+
+    cases = [
+        (get_flows, fake, {"start_time": EXPLICIT["start_time"]}),
+        (get_flows, fake, {"end_time": EXPLICIT["end_time"]}),
+        (get_flows, fake, {"start_time": "not-a-time", "end_time": EXPLICIT["end_time"]}),
+        (get_flows, fake, {"start_time": EXPLICIT["start_time"], "end_time": "nope"}),
+        (get_flows, fake, {"start_time": EXPLICIT["end_time"], "end_time": EXPLICIT["start_time"]}),
+        (get_flows, fake, {"start_time": EXPLICIT["start_time"], "end_time": EXPLICIT["start_time"]}),
+        (get_link_metrics, telemetry, {"start_time": EXPLICIT["start_time"]}),
+        (get_probe_metrics, telemetry, {"end_time": "garbage", "start_time": EXPLICIT["start_time"]}),
+    ]
+    for tool, client, kwargs in cases:
+        monkeypatch.setattr(registry, "client", client)
+        payload = json.loads(tool("site-1", **kwargs))
+        assert payload["code"] == "invalid_argument", (tool.__name__, kwargs)
+
+    assert fake.body is None
+    assert telemetry.bodies == {}
+
+
+def test_hours_path_payload_unchanged_and_echoes_relative_source(monkeypatch):
+    fake = FakeClient()
+    monkeypatch.setattr(registry, "client", fake)
+
+    payload = json.loads(get_flows("site-1", hours=1, limit=20))
+
+    assert set(fake.body) == {
+        "start_time",
+        "end_time",
+        "filter",
+        "debug_level",
+        "page_size",
+        "dest_page",
+    }
+    assert fake.body["page_size"] == 1000
+    assert payload["window"]["source"] == "relative_hours"
+    assert payload["window"]["start_time"] == fake.body["start_time"]
+    assert payload["window"]["end_time"] == fake.body["end_time"]
+
+    telemetry = TelemetryClient()
+    monkeypatch.setattr(registry, "client", telemetry)
+    assert json.loads(get_link_metrics("site-1"))["window"]["source"] == "relative_hours"
+    assert json.loads(get_probe_metrics("site-1"))["window"]["source"] == "relative_hours"
+
+    bad_hours = json.loads(get_flows("site-1", hours=169))
+    assert bad_hours["code"] == "invalid_argument"
+
+
+def _digest_client(monkeypatch, count):
+    records = [
+        {
+            "app_id": "zoom",
+            "path_id": "p-1",
+            "flow_action": "allow",
+            "src_ip": f"10.0.0.{i % 250}",
+            "dst_ip": "10.9.9.9",
+            "bytes_c2s": 1,
+            "bytes_s2c": 1,
+        }
+        for i in range(count)
+    ]
+    fake = FakeClient()
+    fake.sdk.post.monitor_flows = lambda data: {"flows": {"items": records}}
+    monkeypatch.setattr(registry, "client", fake)
+    return fake
+
+
+def test_digest_flags_truncated_sample_when_fetch_hits_the_limit(monkeypatch):
+    _digest_client(monkeypatch, 1000)
+
+    payload = json.loads(get_flows("site-1"))
+
+    assert payload["digest_complete"] is False
+    assert payload["digest_sample_size"] == 1000
+    assert payload["digest_sample_limit"] == 1000
+    assert payload["digest_more_pages"] is True
+    assert payload["limits_applied"][0]["limit"] == "flow_digest_sample"
+    assert any(item["limit"] == "top_talkers" for item in payload["limits_applied"])
+    assert "Truncated sample" in payload["summary"]
+    assert "top_talkers" in payload["summary"]
+    assert "not totals for the window" in payload["summary"]
+
+
+def test_digest_reports_complete_when_below_the_limit(monkeypatch):
+    _digest_client(monkeypatch, 3)
+
+    payload = json.loads(get_flows("site-1"))
+
+    assert payload["digest_complete"] is True
+    assert payload["digest_sample_size"] == 3
+    assert payload["digest_sample_limit"] == 1000
+    assert "digest_more_pages" not in payload
+    assert "Truncated sample" not in payload["summary"]

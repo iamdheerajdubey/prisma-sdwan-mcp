@@ -9,13 +9,12 @@ import prisma_sase
 
 from .config import get_controller, get_credentials
 from .formatting import _extract_response
+from .limits import MAX_ATTEMPTS, MAX_RETRY_WALL_SECONDS
 
 
 LOGGER = logging.getLogger(__name__)
 FALLBACK_TOKEN_SECONDS = 839
 TOKEN_SAFETY_MARGIN_SECONDS = 60
-MAX_ATTEMPTS = 3
-MAX_RETRY_WALL_SECONDS = 8.0
 
 
 class PrismaSDWANClient:

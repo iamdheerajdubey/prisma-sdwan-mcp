@@ -126,10 +126,18 @@ def get_elements(
         filter upstream — an unfiltered call returns every element in the
         tenant; filter the result client-side by each element's own
         site_id, or use the ``prisma://site/{site_id}/elements`` resource,
-        which does that filtering already. For an HA audit, the relevant
-        field is ``spoke_ha_config``: confirm both cluster members are
-        present and connected, and that they have distinct priority values
-        (higher priority wins the active role).
+        which does that filtering already.
+
+        For an HA audit the relevant field is ``spoke_ha_config``. Each HA
+        member is a separate element with its own ``element_id``; members
+        are linked by ``spoke_ha_config.cluster_id`` (the top-level
+        ``cluster_id`` is null). The controller reports CONFIGURED state
+        only — it does not expose which member is currently active, and
+        ``priority`` must not be used to infer it: a ``track`` entry
+        subtracts ``reduce_priority`` at runtime when a tracked interface
+        drops, so the effective priority is computed on the device and can
+        invert the pair. Determining the live active member requires device
+        CLI access (see the cli-mcp server's ``run_commands``).
 
     Examples:
         - get_elements()

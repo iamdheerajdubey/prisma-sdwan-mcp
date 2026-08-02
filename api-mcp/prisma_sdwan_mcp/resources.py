@@ -10,12 +10,28 @@ from __future__ import annotations
 import json
 
 from . import registry
+from .formatting import CONTRACT_VERSION, ERROR_CODES, FROZEN_ENVELOPE_KEYS
+from .limits import limits_payload
 from .tools.inventory import get_elements, get_sites
 from .tools.network import get_topology
 from .tools.policy import get_policy_sets
 
 
 mcp = registry.mcp
+
+
+@mcp.resource("prisma://contract", mime_type="application/json")
+def contract_resource() -> str:
+    """Describe the response contract enforced by api-mcp."""
+    return json.dumps(
+        {
+            "contract_version": CONTRACT_VERSION,
+            "frozen_envelope_keys": list(FROZEN_ENVELOPE_KEYS),
+            "error_codes": sorted(ERROR_CODES),
+            "limits": limits_payload(),
+        },
+        separators=(",", ":"),
+    )
 
 
 @mcp.resource("prisma://sites", mime_type="application/json")

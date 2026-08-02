@@ -1,12 +1,17 @@
+import json
 from typing import Callable, Optional
 
 from .. import registry
-from ..formatting import build_envelope, collection_response, error_json, internal_error
+from ..formatting import (
+    build_envelope,
+    collection_response,
+    error_json,
+    internal_error,
+    structured_error,
+)
 
 
 mcp = registry.mcp
-
-FIND_CAP = 50
 
 
 def _validate_name(name: str, tool: str) -> str | None:
@@ -44,6 +49,7 @@ def _find_response(
     cursor: Optional[str],
     limit: Optional[int],
     extra: Optional[dict] = None,
+    error: Optional[dict] = None,
 ) -> str:
     matches = [
         record
@@ -51,8 +57,6 @@ def _find_response(
         if isinstance(record, dict) and _matches(name, record, *match_fields)
     ]
     total = len(matches)
-    capped = len(matches) > FIND_CAP
-    selected = matches[:FIND_CAP]
     if total == 0:
         summary = f"No {label} match name '{name}'"
         ambiguous = False
@@ -62,28 +66,40 @@ def _find_response(
     else:
         summary = f"{total} {label} match name '{name}'"
         ambiguous = True
-    if capped:
-        summary += f"; returning the first {FIND_CAP} — refine your search"
     payload_extra = {
         "match_count": total,
         "ambiguous": ambiguous,
-        "capped": capped,
+        # Nothing is hard-capped any more; every match is reachable via
+        # next_cursor. Kept for consumers that read the key.
+        "capped": False,
     }
-    if capped:
-        payload_extra["refine_hint"] = (
-            f"refine the search; the first {FIND_CAP} candidates are shown"
-        )
     if extra:
         payload_extra.update(extra)
-    return build_envelope(
+    response = build_envelope(
         tool,
         summary,
         key,
-        selected,
+        matches,
         cursor=cursor,
         limit=limit,
         extra=payload_extra,
+        error=error,
     )
+    if json.loads(response).get("truncated"):
+        payload_extra["refine_hint"] = (
+            "refine the search or follow next_cursor for the remaining candidates"
+        )
+        response = build_envelope(
+            tool,
+            summary,
+            key,
+            matches,
+            cursor=cursor,
+            limit=limit,
+            extra=payload_extra,
+            error=error,
+        )
+    return response
 
 
 def _simple_find(
@@ -135,7 +151,8 @@ def find_site(
 
     Returns:
         Every matching site with its ID; never a single auto-picked record.
-        The candidate list is capped at 50 with a refine hint beyond it.
+        Every match is reachable: large candidate lists are paged by
+        ``next_cursor``, never truncated away.
 
     Examples:
         - find_site(name="amsterdam")
@@ -175,7 +192,8 @@ def find_element(
 
     Returns:
         Every matching element with its element ID and site ID; never a
-        single auto-picked record. The candidate list is capped at 50.
+        single auto-picked record. Large candidate lists are paged by
+        ``next_cursor``.
 
     Examples:
         - find_element(name="IAZ3")
@@ -214,8 +232,8 @@ def find_app(
         limit: Maximum matching definitions to return.
 
     Returns:
-        Every matching application definition with its ID, capped at 50
-        candidates with a refine hint so the response stays within the
+        Every matching application definition with its ID. Large candidate
+        lists are paged by ``next_cursor`` so the response stays within the
         byte budget even for huge catalogs.
 
     Examples:
@@ -255,7 +273,7 @@ def find_machine(
         limit: Maximum matching machines to return.
 
     Returns:
-        Every matching machine with its ID, capped at 50 candidates.
+        Every matching machine with its ID; paged by ``next_cursor``.
 
     Examples:
         - find_machine(name="ion-5200-01")
@@ -294,7 +312,7 @@ def find_security_zone(
         limit: Maximum matching zones to return.
 
     Returns:
-        Every matching security zone with its ID, capped at 50 candidates.
+        Every matching security zone with its ID; paged by ``next_cursor``.
 
     Examples:
         - find_security_zone(name="lan")
@@ -333,7 +351,7 @@ def find_wan_network(
         limit: Maximum matching networks to return.
 
     Returns:
-        Every matching WAN network with its ID, capped at 50 candidates.
+        Every matching WAN network with its ID; paged by ``next_cursor``.
 
     Examples:
         - find_wan_network(name="MPLS")
@@ -372,7 +390,7 @@ def find_path_group(
         limit: Maximum matching path groups to return.
 
     Returns:
-        Every matching path group with its ID, capped at 50 candidates.
+        Every matching path group with its ID; paged by ``next_cursor``.
 
     Examples:
         - find_path_group(name="direct")
@@ -411,7 +429,7 @@ def find_service_label(
         limit: Maximum matching labels to return.
 
     Returns:
-        Every matching service label with its ID, capped at 50 candidates.
+        Every matching service label with its ID; paged by ``next_cursor``.
 
     Examples:
         - find_service_label(name="gold")
@@ -461,8 +479,8 @@ def find_policy_set(
         limit: Maximum matching policy sets to return.
 
     Returns:
-        Every matching policy set with its ID and family, capped at 50
-        candidates; never a single auto-picked record.
+        Every matching policy set with its ID and family, paged by
+        ``next_cursor``; never a single auto-picked record.
 
     Examples:
         - find_policy_set(name="enterprise")
@@ -489,6 +507,14 @@ def find_policy_set(
                 if isinstance(record, dict)
             )
         extra = {"family_errors": family_errors} if family_errors else None
+        partial_error = None
+        if family_errors and combined:
+            partial_error = structured_error(
+                "partial_response",
+                "one or more policy-set families could not be retrieved",
+                tool,
+                details={"family_errors": family_errors},
+            )
         return _find_response(
             "find_policy_set",
             "policy_sets",
@@ -499,6 +525,7 @@ def find_policy_set(
             cursor,
             limit,
             extra,
+            partial_error,
         )
     except Exception as error:
         return internal_error("find_policy_set", error)
@@ -512,19 +539,16 @@ def _first_value(item: dict, *names: str):
     return None
 
 
-def _anynet_transport(link: dict) -> str:
-    remote_site_id = link.get("remote_site_id")
-    if remote_site_id is not None and str(remote_site_id) not in ("0", "", "None"):
-        return "private_wan"
-    source_site = _first_value(link, "source_site_id", "source_site_name", "source_node_id")
-    target_site = _first_value(link, "target_site_id", "target_site_name", "target_node_id")
-    if (
-        source_site is not None
-        and target_site is not None
-        and str(source_site) != str(target_site)
-    ):
-        return "private_wan"
-    return "internet"
+def _stated_transport(record: dict) -> str:
+    """Report the transport the controller states for a record, else ``unknown``.
+
+    Used for anynet links, their vpnlink legs, and WAN interfaces alike.
+    Never derived from comparing endpoint IDs, and never defaulted to a
+    plausible value: the controller is the only authority on transport, and
+    a guess reported as a fact is worse than an honest ``unknown``.
+    """
+    stated = _first_value(record, "transport", "link_type", "type")
+    return str(stated) if stated is not None else "unknown"
 
 
 def _link_entry(link: dict) -> dict:
@@ -532,7 +556,7 @@ def _link_entry(link: dict) -> dict:
         "path_id": link.get("path_id") or link.get("id"),
         "resolved": True,
         "kind": "anynet_link",
-        "transport": _anynet_transport(link),
+        "transport": _stated_transport(link),
         "source": link.get("source_site_name")
         or link.get("source_site_id")
         or link.get("source_node_id"),
@@ -548,7 +572,7 @@ def _leg_entry(link: dict, leg: dict) -> dict:
         "path_id": leg.get("vpnlink_id") or leg.get("id"),
         "resolved": True,
         "kind": "vpnlink_leg",
-        "transport": _anynet_transport(link),
+        "transport": _stated_transport(link),
         "parent_path_id": link.get("path_id") or link.get("id"),
         "ep1": {
             "site_id": _first_value(leg, "ep1_site_id", "source_site_id"),
@@ -622,7 +646,7 @@ def resolve_path(site_id: str, path_id: str) -> str:
                         "path_id": path_id,
                         "resolved": True,
                         "kind": "wan_interface",
-                        "transport": "internet",
+                        "transport": _stated_transport(wan),
                         "name": _first_value(wan, "name", "interface_name"),
                         "site_id": site_id,
                         "element_id": _first_value(wan, "element_id"),
@@ -648,7 +672,7 @@ def resolve_path(site_id: str, path_id: str) -> str:
                                     "path_id": path_id,
                                     "resolved": True,
                                     "kind": "vpnlink_leg",
-                                    "transport": _anynet_transport(link),
+                                    "transport": _stated_transport(link),
                                     "parent_path_id": link.get("path_id") or link.get("id"),
                                 }
                             )

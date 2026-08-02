@@ -232,7 +232,7 @@ def test_policy_families_are_returned_independently(monkeypatch):
     assert {item["policy_family"] for item in payload["policy_sets"]} == {"network", "nat"}
 
 
-def test_vpnlink_status_keeps_distinct_flags_and_endpoints(monkeypatch):
+def test_vpnlink_status_passes_through_upstream_fields(monkeypatch):
     calls = []
 
     def status(vpnlink_id, **kwargs):
@@ -264,12 +264,12 @@ def test_vpnlink_status_keeps_distinct_flags_and_endpoints(monkeypatch):
     assert payload["vpnlink_status"][0]["active"] is True
     assert payload["vpnlink_status"][0]["usable"] is True
     assert payload["vpnlink_status"][0]["link_up"] is False
-    assert payload["vpnlink_status"][0]["cipher"] == "AES-256-GCM"
-    assert payload["vpnlink_status"][0]["keepalive"]["ep1"]["interval"] == 10
-    assert payload["vpnlink_status"][0]["keepalive"]["ep1"]["failure_count"] == 3
+    assert payload["vpnlink_status"][0]["common_cipher"] == "AES-256-GCM"
+    assert payload["vpnlink_status"][0]["ep1_keep_alive_interval"] == 10
+    assert payload["vpnlink_status"][0]["ep1_keep_alive_failure_count"] == 3
     assert payload["vpnlink_status"][0]["ep1_site_id"] == "site-1"
     assert payload["vpnlink_status"][0]["ep2_interface_id"] == "if-2"
-    assert "unexpected_field" not in payload["vpnlink_status"][0]
+    assert payload["vpnlink_status"][0]["unexpected_field"] == "dropped"
 
 
 def test_vpnlink_status_unknown_id_returns_structured_error(monkeypatch):
