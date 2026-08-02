@@ -122,7 +122,14 @@ def get_elements(
         limit: Maximum list items to return.
 
     Returns:
-        A compact, budgeted JSON response.
+        A compact, budgeted JSON response. This endpoint has no site_id
+        filter upstream — an unfiltered call returns every element in the
+        tenant; filter the result client-side by each element's own
+        site_id, or use the ``prisma://site/{site_id}/elements`` resource,
+        which does that filtering already. For an HA audit, the relevant
+        field is ``spoke_ha_config``: confirm both cluster members are
+        present and connected, and that they have distinct priority values
+        (higher priority wins the active role).
 
     Examples:
         - get_elements()

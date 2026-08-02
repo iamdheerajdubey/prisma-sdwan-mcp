@@ -52,6 +52,43 @@ def diagnose_vpn_link_down(site_hint: str) -> str:
 
 
 @mcp.prompt
+def diagnose_link_quality(site_hint: str) -> str:
+    """Guided triage for a "circuit feels degraded" complaint (loss, jitter,
+    choppy voice, slow but not down) — as distinct from a hard link-down
+    alert, which diagnose_vpn_link_down covers.
+
+    Args:
+        site_hint: Site name or substring naming the affected site.
+    """
+    return (
+        f"Triage a link-quality complaint at a site matching '{site_hint}'. "
+        "Use this server's own tools, then cli-mcp if it is available in "
+        "this deployment:\n\n"
+        f'1. find_site(name="{site_hint}") to resolve the name to a '
+        "site_id. If more than one site matches, ask which one before "
+        "continuing.\n"
+        "2. get_link_metrics(site_id) for the controller's own recorded "
+        "LQM history per WAN path — latency, jitter, packet loss, and MOS.\n"
+        "3. get_probe_metrics(site_id) for synthetic probe history against "
+        "whatever targets are configured. It can corroborate or contradict "
+        "get_link_metrics; report both, do not average or discard either.\n"
+        "4. get_wan_interfaces(site_id) to map the flagged path/link to its "
+        "underlying interface, for step 5.\n"
+        "5. If cli-mcp is available and steps 2-3 point at a specific "
+        "interface: run_commands with a bounded ping (e.g. "
+        "'ping <interface> <destination>') on that exact interface, to "
+        "confirm the degradation is still happening right now rather than "
+        "resolved. This step sends real packets — it is not a read-only "
+        "call.\n\n"
+        "Report what each source showed, including disagreement between "
+        "them, and whether live testing (if run) confirmed or contradicted "
+        "the historical data. Do not decide a numeric loss/jitter threshold "
+        "constitutes 'degraded' — report the measured values and let the "
+        "caller judge against their own SLA."
+    )
+
+
+@mcp.prompt
 def audit_site_inventory(site_hint: str | None = None) -> str:
     """Guided HA/inventory audit for one site, or the whole tenant.
 

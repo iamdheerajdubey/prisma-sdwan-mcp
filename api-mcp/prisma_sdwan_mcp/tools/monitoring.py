@@ -403,7 +403,11 @@ def get_events(
         last: Override the requested event count (1 to 100).
 
     Returns:
-        A compact, projected event collection.
+        A compact, projected event collection. An unwindowed call only
+        returns the most recent ``limit`` records and can miss an incident
+        entirely if other events happened since — for incident
+        investigation, pass start_time/end_time windowed tightly around the
+        time of interest rather than relying on the default limit.
 
     Examples:
         - get_events()
@@ -469,7 +473,11 @@ def get_alarms(
         last: Override the requested alarm count (1 to 100).
 
     Returns:
-        A compact, projected alarm collection.
+        A compact, projected alarm collection. An unwindowed call only
+        returns the most recent ``limit`` records and can miss an incident
+        entirely — window start_time/end_time tightly around the time of
+        interest. An alarm's ``cleared: false`` means it is still open as of
+        this query.
 
     Examples:
         - get_alarms()
@@ -788,7 +796,13 @@ def get_link_metrics(
             of the pivoted snapshots.
 
     Returns:
-        Bandwidth series and per-WAN link-quality snapshots.
+        Bandwidth series and per-WAN link-quality snapshots. This is
+        continuous background LQM telemetry the controller already
+        recorded, not a live test — for "is it still bad right now" on one
+        specific interface, or a target not covered by LQM/probes, use
+        cli-mcp's ``ping``/``tcpping`` instead (if deployed alongside this
+        server). Cross-check against get_probe_metrics, which measures
+        different configured targets and can corroborate or contradict this.
 
     Examples:
         - get_link_metrics(site_id="site123")
@@ -899,7 +913,12 @@ def get_probe_metrics(site_id: str, hours: int = 1) -> str:
 
     Returns:
         Probe latency, jitter, and packet-loss snapshots, or an explanatory
-        empty result when no probes are configured.
+        empty result when no probes are configured. Probes only cover their
+        pre-configured targets — for an arbitrary destination, or to confirm
+        a symptom is happening right now on one interface, use cli-mcp's
+        ``ping``/``tcpping``/``dig`` instead (if deployed alongside this
+        server). Cross-check against get_link_metrics, which measures the
+        underlying WAN path itself rather than a configured target.
 
     Examples:
         - get_probe_metrics(site_id="site123")

@@ -106,7 +106,12 @@ def get_topology(
         limit: Maximum detailed links to return.
 
     Returns:
-        A compact topology summary or filtered nodes and links.
+        A compact topology summary or filtered nodes and links. Each link
+        carries both ``path_id`` and ``anynet_link_id`` — two different IDs
+        on the same object. When correlating a
+        ``NETWORK_ANYNETLINK_DOWN``-style alert, match the alert's
+        ``anynetlink_id`` field against a link's ``anynet_link_id``, not its
+        ``path_id``.
 
     Examples:
         - get_topology()
@@ -393,6 +398,10 @@ def get_vpnlink_status(vpnlink_id: str) -> str:
 
     Returns:
         The leg's operational state, or a structured error for an unknown ID.
+        This endpoint reports live state only — no human-readable failure
+        reason (e.g. "BFD Failure", "Administratively Down"). Getting that
+        reason requires device CLI access (see the cli-mcp server's
+        ``run_commands``, if deployed alongside this one).
 
     Examples:
         - get_vpnlink_status(vpnlink_id="leg123")
@@ -462,7 +471,9 @@ def get_vpnlink_state(vpnlink_id: str) -> str:
 
     Returns:
         The leg's ``enabled`` admin flag plus ``al_id``, the parent anynet
-        link's ``path_id`` join key back to ``get_topology``.
+        link's ``path_id`` join key back to ``get_topology``. ``enabled:
+        false`` means an operator disabled this leg on purpose — check this
+        before reporting a down leg as an outage.
 
     Examples:
         - get_vpnlink_state(vpnlink_id="leg123")
@@ -527,6 +538,9 @@ def get_basenet_topology(
     Returns:
         Incident basenet entries with element/interface fields, counts, and a
         summary distinguishing no paths from an ID absent from the topology.
+        Each entry's ``anynet_link_id`` is the field to match a
+        ``NETWORK_ANYNETLINK_DOWN``-style alert's ``anynetlink_id`` against —
+        it is a different identifier from ``path_id`` on the same link.
 
     Examples:
         - get_basenet_topology(site_id="site123")
