@@ -113,7 +113,14 @@ def _simple_find(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_site(
     name: str,
     cursor: Optional[str] = None,
@@ -146,7 +153,14 @@ def find_site(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_element(
     name: str,
     cursor: Optional[str] = None,
@@ -179,7 +193,14 @@ def find_element(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_app(
     name: str,
     cursor: Optional[str] = None,
@@ -213,7 +234,14 @@ def find_app(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_machine(
     name: str,
     cursor: Optional[str] = None,
@@ -245,7 +273,14 @@ def find_machine(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_security_zone(
     name: str,
     cursor: Optional[str] = None,
@@ -277,7 +312,14 @@ def find_security_zone(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_wan_network(
     name: str,
     cursor: Optional[str] = None,
@@ -309,7 +351,14 @@ def find_wan_network(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_path_group(
     name: str,
     cursor: Optional[str] = None,
@@ -341,7 +390,14 @@ def find_path_group(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_service_label(
     name: str,
     cursor: Optional[str] = None,
@@ -381,7 +437,14 @@ POLICY_SET_ENDPOINTS = (
 )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def find_policy_set(
     name: str,
     cursor: Optional[str] = None,
@@ -500,7 +563,14 @@ def _leg_entry(link: dict, leg: dict) -> dict:
     }
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def resolve_path(site_id: str, path_id: str) -> str:
     """Resolve a bare path_id into a human-readable circuit descriptor.
 

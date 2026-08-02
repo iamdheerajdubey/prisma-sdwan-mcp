@@ -45,7 +45,14 @@ def _validate_limit(limit: int | None, tool: str) -> str | None:
     return None
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_sites(
     site_id: Optional[str] = None,
     cursor: Optional[str] = None,
@@ -94,7 +101,14 @@ def get_sites(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_elements(
     element_id: Optional[str] = None,
     cursor: Optional[str] = None,
@@ -143,7 +157,14 @@ def get_elements(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_machines(
     machine_id: Optional[str] = None,
     cursor: Optional[str] = None,
@@ -217,7 +238,14 @@ def _appdef_matches(item: dict, search: str | None, category: str | None) -> boo
     return True
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_app_defs(
     search: Optional[str] = None,
     category: Optional[str] = None,

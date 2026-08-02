@@ -81,7 +81,14 @@ def _node_matches_site(node: dict, site_id: str) -> bool:
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_topology(
     detail: str = "summary",
     site_id: Optional[str] = None,
@@ -190,7 +197,14 @@ def get_topology(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_interfaces(
     site_id: str,
     element_id: str,
@@ -236,7 +250,14 @@ def get_interfaces(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_wan_interfaces(
     site_id: str,
     cursor: Optional[str] = None,
@@ -277,7 +298,14 @@ def get_wan_interfaces(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_site_paths(
     site_id: str,
     cursor: Optional[str] = None,
@@ -344,7 +372,14 @@ def get_site_paths(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_vpnlink_status(vpnlink_id: str) -> str:
     """Retrieve per-leg VPN link operational state.
 
@@ -410,7 +445,14 @@ def get_vpnlink_status(vpnlink_id: str) -> str:
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_vpnlink_state(vpnlink_id: str) -> str:
     """Retrieve a VPN link leg's administrative state.
 
@@ -454,7 +496,14 @@ def get_vpnlink_state(vpnlink_id: str) -> str:
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_basenet_topology(
     site_id: str,
     cursor: Optional[str] = None,

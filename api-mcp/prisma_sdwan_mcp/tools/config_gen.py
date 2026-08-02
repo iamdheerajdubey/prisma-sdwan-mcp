@@ -50,7 +50,14 @@ def str_presenter(dumper, data):
 IndentDumper.add_representer(str, str_presenter)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": False,
+    }
+)
 def generate_site_config(
     site_id: str,
     elements: List[Dict[str, Any]],

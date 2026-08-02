@@ -32,7 +32,14 @@ def _call_family(endpoint: str):
     return registry.client.call_sdk(method)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_policy_sets(
     kind: str = "all",
     include_stacks: bool = False,
@@ -116,7 +123,14 @@ def get_policy_sets(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_security_zones(
     securityzone_id: Optional[str] = None,
     cursor: Optional[str] = None,
@@ -173,7 +187,14 @@ def _reference_tool(tool, key, endpoint, identifier, value, cursor, limit):
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_path_groups(
     pathgroup_id: Optional[str] = None,
     cursor: Optional[str] = None,
@@ -183,7 +204,14 @@ def get_path_groups(
     return _reference_tool("get_path_groups", "path_groups", "pathgroups", "pathgroup_id", pathgroup_id, cursor, limit)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_service_labels(
     servicelabel_id: Optional[str] = None,
     cursor: Optional[str] = None,
@@ -193,7 +221,14 @@ def get_service_labels(
     return _reference_tool("get_service_labels", "service_labels", "servicelabels", "servicelabel_id", servicelabel_id, cursor, limit)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_wan_networks(
     wannetwork_id: Optional[str] = None,
     cursor: Optional[str] = None,

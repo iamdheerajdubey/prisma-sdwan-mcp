@@ -258,7 +258,14 @@ def _flow_items(data):
     return []
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_element_status(element_id: str) -> str:
     """Retrieve operational status for one element.
 
@@ -282,7 +289,14 @@ def get_element_status(element_id: str) -> str:
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_software_status(element_id: str) -> str:
     """Retrieve software status for one element.
 
@@ -357,7 +371,14 @@ def _scoping_payload(
     return payload
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_events(
     limit: int = 20,
     cursor: Optional[str] = None,
@@ -416,7 +437,14 @@ def get_events(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_alarms(
     limit: int = 20,
     cursor: Optional[str] = None,
@@ -475,7 +503,14 @@ def get_alarms(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_interface_status(
     site_id: str,
     element_id: str,
@@ -557,7 +592,14 @@ def get_interface_status(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_flows(
     site_id: str,
     hours: int = 1,
@@ -719,7 +761,14 @@ def _flow_digest_response(
     )
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_link_metrics(
     site_id: str,
     hours: int = 1,
@@ -833,7 +882,14 @@ def get_link_metrics(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_probe_metrics(site_id: str, hours: int = 1) -> str:
     """Retrieve synthetic endpoint-probe metrics for a site.
 

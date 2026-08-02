@@ -69,7 +69,14 @@ def _validate_connection_inputs(
     return None
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def run_commands(
     host: str,
     port: int,

@@ -58,7 +58,14 @@ def _prefix_counts(items: list) -> tuple[int, int, bool]:
     return reachable, filtered, indicator_seen
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_bgp_peers(
     site_id: str,
     element_id: str,
@@ -100,7 +107,14 @@ def get_bgp_peers(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_static_routes(
     site_id: str,
     element_id: str,
@@ -144,7 +158,14 @@ def get_static_routes(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_bgp_status(
     site_id: str,
     element_id: str,
@@ -235,7 +256,14 @@ def get_bgp_status(
         return internal_error(tool, error)
 
 
-@mcp.tool()
+@mcp.tool(
+    annotations={
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
 def get_bgp_prefixes(
     site_id: str,
     element_id: str,
