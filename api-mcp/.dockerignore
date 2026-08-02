@@ -1,0 +1,44 @@
+# Environment & secrets
+.env
+.env.*
+
+# Git
+.git/
+.gitignore
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Type checking / linting
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test & docs (not needed in image)
+test_all_tools.py
+README.md
+AGENTS.md
+TOOL_REVIEW_GUIDE.md
+.sisyphus/

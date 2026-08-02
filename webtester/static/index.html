@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>Prisma SD-WAN Network Experience</title>
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/app.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="Primary navigation">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 7.5 12 3l7 4.5v9L12 21l-7-4.5v-9Zm7-1.8L8 8.2l4 2.5 4-2.5-4-2.5Zm-4.8 5v4.6l3.5 2.2v-4.6l-3.5-2.2Zm9.6 0-3.5 2.2v4.6l3.5-2.2v-4.6Z"/></svg>
+        </div>
+        <div>
+          <div class="brand-title">Network Experience</div>
+          <div class="brand-subtitle">Prisma SD-WAN</div>
+        </div>
+      </div>
+
+      <nav class="nav" id="primaryNav">
+        <button class="nav-item active" data-page="overview">
+          <span class="nav-icon" data-icon="overview"></span><span>Overview</span>
+        </button>
+        <button class="nav-item" data-page="sites">
+          <span class="nav-icon" data-icon="sites"></span><span>Sites</span><span class="nav-count" id="siteNavCount">—</span>
+        </button>
+        <button class="nav-item" data-page="findings">
+          <span class="nav-icon" data-icon="findings"></span><span>Findings</span><span class="nav-count" id="findingNavCount">—</span>
+        </button>
+        <button class="nav-item" data-page="telemetry">
+          <span class="nav-icon" data-icon="telemetry"></span><span>Telemetry</span>
+        </button>
+        <button class="nav-item" data-page="resources">
+          <span class="nav-icon" data-icon="resources"></span><span>Resources</span>
+        </button>
+        <button class="nav-item" data-page="ask">
+          <span class="nav-icon" data-icon="ask"></span><span>Ask Network</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+      <div class="environment-card">
+        <div class="environment-row">
+          <span class="status-dot" id="sidebarStatusDot"></span>
+          <div class="environment-copy">
+            <strong id="sidebarStatusTitle">Checking connection</strong>
+            <span id="sidebarStatusMeta">Local customer portal</span>
+          </div>
+        </div>
+        <button class="sidebar-button" id="openAdminButton">
+          <span data-icon="settings"></span> Administration
+        </button>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Network overview</h1>
+          <p id="pageSubtitle">Current service health and customer impact</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="mode-switch" aria-label="Data mode">
+            <button class="mode-option active" data-mode="live">Live</button>
+            <button class="mode-option" data-mode="demo">Preview</button>
+          </div>
+          <button class="icon-button" id="refreshButton" title="Refresh current view" aria-label="Refresh current view">
+            <span data-icon="refresh"></span>
+          </button>
+        </div>
+      </header>
+
+      <div id="connectionBanner" class="connection-banner" hidden>
+        <div>
+          <strong>Network data is not connected.</strong>
+          <span>Configure the Prisma service account in Administration, or use Preview to explore the interface.</span>
+        </div>
+        <button class="button button-secondary" id="bannerAdminButton">Open administration</button>
+      </div>
+
+      <main id="appContent" class="content" tabindex="-1"></main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="detailModal" hidden>
+    <section class="modal modal-large" role="dialog" aria-modal="true" aria-labelledby="detailModalTitle">
+      <header class="modal-header">
+        <div>
+          <div class="eyebrow" id="detailModalEyebrow">Network resource</div>
+          <h2 id="detailModalTitle">Details</h2>
+        </div>
+        <button class="icon-button modal-close" data-close-modal="detailModal" aria-label="Close"><span data-icon="close"></span></button>
+      </header>
+      <div class="modal-body" id="detailModalBody"></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="adminModal" hidden>
+    <section class="modal modal-admin" role="dialog" aria-modal="true" aria-labelledby="adminModalTitle">
+      <header class="modal-header">
+        <div>
+          <div class="eyebrow">Restricted area</div>
+          <h2 id="adminModalTitle">Administration</h2>
+        </div>
+        <button class="icon-button modal-close" data-close-modal="adminModal" aria-label="Close"><span data-icon="close"></span></button>
+      </header>
+      <div class="admin-layout">
+        <nav class="admin-nav">
+          <button class="admin-nav-item active" data-admin-tab="connection">Connection</button>
+          <button class="admin-nav-item" data-admin-tab="capabilities">Capabilities</button>
+          <button class="admin-nav-item" data-admin-tab="tools">MCP tool explorer</button>
+        </nav>
+        <div class="admin-content" id="adminContent"></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <script type="module" src="/static/js/app.js"></script>
+</body>
+</html>
