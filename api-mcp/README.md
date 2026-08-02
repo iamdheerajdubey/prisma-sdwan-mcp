@@ -294,6 +294,30 @@ All tools return JSON-formatted data optimized for LLM consumption.
 | `get_wan_networks` | WAN provider-network reference data | `wannetwork_id`, `cursor`, `limit` (optional) |
 | `generate_site_config` | Generate a validated sandboxed site configuration YAML file | `site_id`, `elements`, `filename` (optional), `overwrite` (optional) |
 
+### Resources
+
+Read-only, attachable snapshots for clients that support browsing/attaching
+MCP resources directly (as opposed to a tool call). Each one delegates to
+the matching tool above, so there's one code path per data type either way.
+
+| URI | Description |
+| --- | --- |
+| `prisma://sites` | Same as `get_sites()` with no arguments. |
+| `prisma://topology` | Same as `get_topology()` with no arguments. |
+| `prisma://policy-sets` | Same as `get_policy_sets()` with no arguments. |
+| `prisma://site/{site_id}/elements` | Elements at one site — fetches the full tenant element list and filters client-side by `site_id`, since the SDK has no server-side filter for this. |
+
+### Prompts
+
+Discoverable, canned troubleshooting workflows. Each one returns an
+instruction message naming which tools to call, in what order, and why —
+not a tool call itself.
+
+| Name | Args | Purpose |
+| --- | --- | --- |
+| `diagnose_vpn_link_down` | `site_hint` | Triage a `NETWORK_ANYNETLINK_DOWN` / `SITE_CONNECTIVITY_DEGRADED` alert: resolve the site, match the anynet leg, check status/state, pull a tightly-windowed event/alarm history, and correlate the underlay circuit. |
+| `audit_site_inventory` | `site_hint` (optional) | Audit HA configuration and connectivity for one site or the whole tenant. |
+
 ### Response budgeting and breaking shapes
 
 Every tool returns compact JSON capped by `PRISMA_MCP_MAX_RESPONSE_BYTES` (40 KB

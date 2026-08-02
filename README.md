@@ -12,8 +12,12 @@ Two complementary, independently-runnable **Model Context Protocol (MCP)** serve
 | --- | --- | --- |
 | Transport to the fabric | Prisma SASE / SD-WAN REST API | SSH (Netmiko) straight to the ION |
 | Auth model | Service-account credentials, loaded once from `.env` | Credentials supplied per call by the caller, never stored |
-| Surface | 39 semantic, read-only tools (inventory, topology, monitoring, policy, routing, config export) | One generic tool, `run_commands`, for a fixed allow-list of read-only ION CLI command families (`dump`, `inspect`) |
+| Tools | 39 semantic, read-only tools (inventory, topology, monitoring, policy, routing, config export) | One generic tool, `run_commands`, for a fixed allow-list of read-only ION CLI command families (`dump`, `inspect`) |
+| Resources | `prisma://sites`, `prisma://topology`, `prisma://policy-sets`, `prisma://site/{site_id}/elements` | `prisma-cli://policy` — the enforced command allow-list, generated from the same policy the server runs |
+| Prompts | `diagnose_vpn_link_down`, `audit_site_inventory` | `troubleshoot_ion` |
 | Docs | [api-mcp/README.md](api-mcp/README.md) | [cli-mcp/README.md](cli-mcp/README.md), [cli-mcp/RESEARCH.md](cli-mcp/RESEARCH.md) |
+
+Both servers implement all three MCP primitives — Tools, Resources, and Prompts — not just tool-calling.
 
 [`webtester/`](webtester/) is a browser UI for exercising `api-mcp`'s tools interactively — a third top-level piece, run separately from either server (see [webtester/README.md](webtester/README.md)).
 

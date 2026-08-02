@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from typing import Any
 
 from fastmcp import FastMCP
 
 from .executor import execute_commands
-from .policy import validate_batch
+from .policy import ION_READ_ONLY_FAMILIES, validate_batch
 
 
 mcp = FastMCP("Prisma SD-WAN ION CLI MCP Server")
@@ -114,6 +115,63 @@ def run_commands(
         private_key=private_key,
         private_key_passphrase=private_key_passphrase,
         known_hosts_file=known_hosts_file,
+    )
+
+
+@mcp.resource("prisma-cli://policy", mime_type="application/json")
+def policy_resource() -> str:
+    """The enforced read-only ION CLI command policy: which command
+    families are allowed, which are denied, and the one supported output
+    filter — generated from the same policy.py the server actually runs,
+    so it can't drift out of sync with real enforcement.
+    """
+    return json.dumps(
+        {
+            "allowed_families": list(ION_READ_ONLY_FAMILIES),
+            "denied_families": ["clear", "config", "debug", "show", "display", "get"],
+            "output_filter": (
+                "COMMAND | grep [-i|-v|-w|-F] PATTERN — at most one, "
+                "immediately after a whitelisted command"
+            ),
+            "notes": (
+                "A bare 'dump' or 'inspect' with no arguments is denied. "
+                "Enforcement is at the command-family level, not a list of "
+                "exact subcommands — see policy.py and RESEARCH.md."
+            ),
+        },
+        indent=2,
+    )
+
+
+@mcp.prompt
+def troubleshoot_ion(symptom_hint: str | None = None) -> str:
+    """Guided starting point for read-only ION CLI troubleshooting.
+
+    Args:
+        symptom_hint: Optional short description of what's being
+            investigated (e.g. "wan path down", "bgp not established").
+    """
+    subject = f" for: {symptom_hint}" if symptom_hint else ""
+    return (
+        f"Read-only ION CLI troubleshooting{subject}. Before calling "
+        "run_commands:\n\n"
+        "1. Check the prisma-cli://policy resource (or just try a command) "
+        "for the exact allowed families — only 'dump' and 'inspect' "
+        "subcommands pass; everything else is denied fail-closed, and a "
+        "denied batch never opens a connection.\n"
+        "2. Make sure the device's SSH host key is already in known_hosts "
+        "(one prior interactive `ssh` login, or `ssh-keyscan`) — host-key "
+        "checking is strict and an unknown/mismatched key fails the call "
+        "before credentials are ever sent, with error.type 'host_key'.\n"
+        "3. Call run_commands(host, port, username, commands=[...], "
+        "password=... or private_key=...) with one or more dump/inspect "
+        "commands. Credentials are used for this call only and never "
+        "stored or echoed back.\n"
+        "4. Read each result independently — a batch can partially succeed; "
+        "one command's status 'error' does not invalidate the others.\n\n"
+        "Command selection itself (which dump/inspect subcommand answers "
+        "the symptom) is the calling agent's job, driven by its own skill "
+        "files — this server enforces safety, it does not pick commands."
     )
 
 

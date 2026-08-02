@@ -94,6 +94,19 @@ contain no executed command entries:
 }
 ```
 
+## Resource and prompt
+
+Alongside the `run_commands` tool, the server exposes:
+
+- **Resource** `prisma-cli://policy` — the enforced allow-list (allowed/denied
+  command families, the output-filter grammar) as browsable JSON, generated
+  from the same [policy.py](prisma_sdwan_cli_mcp/policy.py) constants the
+  server actually enforces, so it can't drift from reality.
+- **Prompt** `troubleshoot_ion(symptom_hint)` — a canned starting checklist
+  (check the policy, confirm the host key is already trusted, call
+  `run_commands`, read each result independently) rather than a tool call
+  itself.
+
 ## Read-only enforcement
 
 The policy gate runs before the Netmiko connection is opened. It validates the

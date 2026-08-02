@@ -11,6 +11,7 @@ client = PrismaSDWANClient()
 registry.client = client
 
 from .tools import config_gen, inventory, monitoring, network, policy, resolve, routing  # noqa: E402,F401
+from . import resources, prompts  # noqa: E402,F401
 
 
 class CleanStderr:
