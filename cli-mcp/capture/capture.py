@@ -39,6 +39,8 @@ MAX_PAGES = 200
 # "--More--(41%)"). Detect it and send a space to page through instead.
 _PAGINATION_MARKER = re.compile(rb"--More--|\(q\)uit")
 
+OUTPUT_DIR = Path(__file__).parent / "output"
+
 
 def read_until_idle(chan: paramiko.Channel) -> bytes:
     data = b""
