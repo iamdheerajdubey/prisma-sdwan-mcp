@@ -1,0 +1,33 @@
+
+*****************************************************************************
+Use the config command carefully. If an element is in the claimed or
+assigned state, it is always recommended to configure the element from the
+Controller. If you configure using the toolkit command, this may result in
+the configuration to be out of sync.
+*****************************************************************************
+
+[J[2K[31mAEDXB01-SDE01#[0m  [J[2K[31mAEDXB01-SDE01#[0m d[J[2K[31mAEDXB01-SDE01#[0m du[J[2K[31mAEDXB01-SDE01#[0m dum[J[2K[31mAEDXB01-SDE01#[0m dump[J[2K[31mAEDXB01-SDE01#[0m dump [J[2K[31mAEDXB01-SDE01#[0m dump o[J[2K[31mAEDXB01-SDE01#[0m dump ov[J[2K[31mAEDXB01-SDE01#[0m dump ove[J[2K[31mAEDXB01-SDE01#[0m dump over[J[2K[31mAEDXB01-SDE01#[0m dump overv[J[2K[31mAEDXB01-SDE01#[0m dump overvi[J[2K[31mAEDXB01-SDE01#[0m dump overvie[J[2K[31mAEDXB01-SDE01#[0m dump overview[J[2K[31mAEDXB01-SDE01#[0m dump overview[J[2K[31mAEDXB01-SDE01#[0m dump overview
+Software			: 6.3.6-b9
+Hardware Model			: ion 1200-s-c5g-ww
+Hardware Version		: 1.1
+Time Now			: 2026-08-03 05:18:28
+Uptime				: 713h52m8.88s
+Last Reboot Reason		: unknown
+Device ID			: 027901-004448-2669
+Registration State		: Assigned
+Registration Name		: AEDXB01-SDE01
+Description			: 
+Element ID			: 1743451497200008896
+Site ID				: 1743465303015010196
+Site Name			: AEDXB01
+Role				: SPOKE
+Tenant ID			: 1593498799
+Site Mode			: in-path
+Site State			: active
+Spoke HA			: true
+Element State			: active
+Simple State			: active
+Controller Connection		: Up [CIC]
+Controller			: controller.hood.cgnx.net [54.70.168.33 52.32.1
+67.5]
+[7m--More--(41%)[Press space to continue, 'q' to quit.][m
