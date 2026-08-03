@@ -19,6 +19,7 @@ env vars ION_HOST / ION_USERNAME / ION_PASSWORD if you'd rather set those.
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
@@ -30,8 +31,13 @@ CONNECT_TIMEOUT = 10
 IDLE_SECONDS = 3.0   # stop once the channel has been quiet this long
 MAX_SECONDS = 60.0   # hard ceiling regardless of idling
 RECV_CHUNK = 65535
+MAX_PAGES = 200
 
-OUTPUT_DIR = Path(__file__).parent / "output"
+# ION pages long output with a "--More--" prompt that just waits for a
+# keypress -- the channel goes idle without ever finishing, so a plain
+# idle-read cuts the output off mid-page (confirmed: real capture stopped at
+# "--More--(41%)"). Detect it and send a space to page through instead.
+_PAGINATION_MARKER = re.compile(rb"--More--|\(q\)uit")
 
 
 def read_until_idle(chan: paramiko.Channel) -> bytes:
@@ -55,6 +61,18 @@ def read_until_idle(chan: paramiko.Channel) -> bytes:
     return data
 
 
+def read_with_pagination(chan: paramiko.Channel) -> bytes:
+    chunk = read_until_idle(chan)
+    data = chunk
+    pages = 0
+    while _PAGINATION_MARKER.search(chunk) and pages < MAX_PAGES:
+        chan.send(" ")
+        chunk = read_until_idle(chan)
+        data += chunk
+        pages += 1
+    return data
+
+
 def capture(host: str, username: str, password: str, command: str) -> Path:
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -68,10 +86,10 @@ def capture(host: str, username: str, password: str, command: str) -> Path:
     )
 
     chan = client.invoke_shell()
-    raw = read_until_idle(chan)  # banner / login gibberish, captured as-is
+    raw = read_with_pagination(chan)  # banner / login gibberish, captured as-is
 
     chan.send(command + "\n")
-    raw += read_until_idle(chan)
+    raw += read_with_pagination(chan)
 
     client.close()
 
