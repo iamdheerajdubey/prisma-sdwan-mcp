@@ -7,11 +7,13 @@ goes idle. Whatever the device sends -- banner, gibberish, the command echo,
 the real output -- all of it lands in the output file untouched.
 
 Usage:
-    ION_HOST=10.64.167.4 ION_USERNAME=ntt-dd ION_PASSWORD='...' \
-        python capture.py "dump overview"
+    Edit config.py with host/username/password, then:
+        python3 capture.py
+    or override the command:
+        python3 capture.py "dump overview"
 
-Credentials are read from env vars only. Never hardcode them here -- this
-folder gets pushed to github.
+Credentials come from config.py (gitignored, never pushed to github), or
+env vars ION_HOST / ION_USERNAME / ION_PASSWORD if you'd rather set those.
 """
 
 from __future__ import annotations
@@ -82,9 +84,16 @@ def capture(host: str, username: str, password: str, command: str) -> Path:
 
 
 def main() -> None:
-    host = os.environ.get("ION_HOST", "10.64.167.4")
-    username = os.environ["ION_USERNAME"]
-    password = os.environ["ION_PASSWORD"]
+    try:
+        import config
+    except ImportError:
+        config = None
+
+    host = os.environ.get("ION_HOST") or getattr(config, "ION_HOST", None)
+    username = os.environ.get("ION_USERNAME") or getattr(config, "ION_USERNAME", None)
+    password = os.environ.get("ION_PASSWORD") or getattr(config, "ION_PASSWORD", None)
+    if not host or not username or not password:
+        sys.exit("missing host/username/password -- fill in capture/config.py")
     command = sys.argv[1] if len(sys.argv) > 1 else "dump overview"
 
     out_path = capture(host, username, password, command)
