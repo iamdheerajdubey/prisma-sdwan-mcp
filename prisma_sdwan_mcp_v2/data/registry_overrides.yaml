@@ -73,14 +73,9 @@ sensitive_key_patterns:
   - authtoken
   - client_secret
 
-# These are still callable via semantic tools when intentionally needed, but generic
-# expert execution requires MCP_ALLOW_UNVERIFIED_COMPAT=true until live-tested.
-expert_blocked_by_default:
-  - compat.topology
-  - compat.events_query
-  - compat.monitor_flows
-  - compat.monitor_metrics
-  - compat.monitor_lqm_point_metrics
-  - compat.monitor_probe_point_metrics
-  - compat.vpnlinks_status
-  - compat.vpnlinks_state
+# Curated actions blocked from generic expert execution until live-tested
+# (MCP_ALLOW_UNVERIFIED_COMPAT=true overrides). All eight were live-validated on
+# 2026-08-07 against a real tenant - see docs/LIVE_VALIDATION.md Step 6 and
+# tmp/findings/r2_curated.md - so the list is now empty. Add an action_id back
+# here if a future curated capability ships unverified.
+expert_blocked_by_default: []

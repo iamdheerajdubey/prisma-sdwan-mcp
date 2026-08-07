@@ -265,11 +265,23 @@ def read_capability(
             ``{}`` for actions with none. Unknown keys are rejected.
         body: JSON object matching that action's ``body_schema``. Only
             meaningful for ``POST`` actions — passing any non-empty body to
-            a ``GET`` action is rejected.
+            a ``GET`` action is rejected, as is any field the action's
+            schema does not declare (the error names the valid fields).
+            Two traps on the standard query body: ``retrieved_fields`` is
+            **refused** — the controller answers it with the full record
+            and a fabricated value in every unrequested field, so the reply
+            looks right and is wrong; and a ``limit`` *inside* the body is
+            not this tool's `limit` — it truncates at the controller and
+            reports the truncated total with no cursor, stranding the rest.
+            Page with the `limit`/`cursor` arguments below instead.
         cursor: Opaque pagination token copied from a previous response's
-            `next_cursor`. Only applies when the result is a list.
+            `next_cursor`. Only applies when the result is a list. A cursor
+            is bound to the tool that issued it — one from another tool is
+            rejected rather than applied to an unrelated list.
         limit: Max items to return in this page when the result is a list.
-            Omit to use the server default page size.
+            Omit to use the server default page size. This is the tool's own
+            paging, applied after the response arrives — prefer it over a
+            ``limit`` field in `body`.
     """
     tool = "read_capability"
     if not expert_tool_enabled():

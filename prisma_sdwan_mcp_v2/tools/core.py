@@ -290,7 +290,12 @@ def get_topology(
         detail: `summary` (default) returns link/node counts plus only the
             links that are not up. `full` returns every matching link and
             requires `site` or `status` to be set — a tenant-wide full dump
-            is refused rather than flooding the response.
+            is refused rather than flooding the response. `node_count`
+            reflects the `nodes` array the controller's AnyNet payload
+            actually returns, which can legitimately be 0 on tenants where
+            the controller reports links only — a 0 node count alongside a
+            non-zero link count is not an error, and link records still name
+            their endpoints.
         site: Site name or controller ID to scope the topology to. Required
             for `detail="full"` (unless `status` is set) and for
             `view="basenet"`.
@@ -431,14 +436,17 @@ def get_wan(
             `ipsec_profiles` (tenant-wide, no site needed),
             `interfaces` (WAN interfaces — requires `site`),
             `paths` (WAN paths — requires `site`),
-            `vpn_links` (VPN link query, tenant-wide but narrowed by `site`
-            when given),
+            `vpn_links` (all VPN links, tenant-wide — this endpoint cannot be
+            narrowed by site or element, see `site`),
             `lan_networks` (requires `site`),
             `vpn_leg_status` / `vpn_leg_state` (live status/state for one VPN
             leg — requires `object_id`, not `site`).
         site: Site name or controller ID. Required (directly or via
             `element`) for `interfaces`, `paths`, and `lan_networks`;
-            optional narrowing filter for `vpn_links`; unused otherwise.
+            ignored by `vpn_links` (a VPN link record has no site field, so the
+            controller rejects a site filter there — the full tenant list is
+            returned and you can match legs to sites via `get_topology`);
+            unused otherwise.
         element: Element name or controller ID, as an alternative to `site`
             for the same operations — the element's own site is used if it
             resolves uniquely. Unused for `networks`, `vrfs`,
@@ -473,7 +481,7 @@ def get_wan(
             return single_json(tool, f"{operation} for '{object_id}'", operation, data)
         else:
             site_id, element_id, _ = site_element(site, element)
-            if operation in {"interfaces", "paths", "vpn_links", "lan_networks"} and not site_id:
+            if operation in {"interfaces", "paths", "lan_networks"} and not site_id:
                 return error_json("invalid_argument", "site is required for this operation", tool, 400)
             if operation == "interfaces":
                 data = execute("vpn_wan.waninterfaces", {"site_id": site_id})
@@ -482,9 +490,11 @@ def get_wan(
                 data = execute("vpn_wan.wanpaths", {"site_id": site_id})
                 items = records(data)
             elif operation == "vpn_links":
-                # Query endpoint supports tenant-wide filtering; use site_id in its body when available.
-                body = {"query_params": {"site_id": site_id}} if site_id else {}
-                data = execute("vpn_wan.vpnlinks_query", body=body)
+                # Tenant-wide only. A VPN link record carries no site field at all
+                # (just id/al_id/vep1_id/vep2_id/shim IPs), so the controller
+                # rejects any site filter on this endpoint - previously this
+                # operation demanded a site and then always failed with 400.
+                data = execute("vpn_wan.vpnlinks_query", body={})
                 items = records(data)
             elif operation == "lan_networks":
                 data = execute("vpn_wan.lannetworks", {"site_id": site_id})

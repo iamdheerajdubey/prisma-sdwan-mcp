@@ -47,19 +47,21 @@ def error_json(code: str, message: str, tool: str, status_code: int | None = Non
     return compact_json(structured_error(code, message, tool, status_code, details))
 
 
-def _encode_cursor(offset: int) -> str:
-    raw = compact_json({"v": 2, "offset": offset}).encode("utf-8")
+def _encode_cursor(offset: int, tool: str) -> str:
+    raw = compact_json({"v": 3, "offset": offset, "t": tool}).encode("utf-8")
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
 
 
-def _decode_cursor(cursor: str | None, total: int) -> int:
+def _decode_cursor(cursor: str | None, total: int, tool: str) -> int:
     if not cursor:
         return 0
     try:
         padded = cursor + "=" * (-len(cursor) % 4)
         data = json.loads(base64.urlsafe_b64decode(padded.encode("ascii")))
         offset = data["offset"]
-        if data.get("v") != 2 or isinstance(offset, bool) or not isinstance(offset, int):
+        # The tool tag stops a cursor minted by one tool from silently paging a
+        # different tool's unrelated result list.
+        if data.get("v") != 3 or data.get("t") != tool or isinstance(offset, bool) or not isinstance(offset, int):
             raise ValueError
         if offset < 0 or offset > total:
             raise ValueError
@@ -98,7 +100,7 @@ def _payload(tool: str, summary: str, key: str, items: list[Any], total: int, ne
         "retrieved_at": now_iso(),
     }
     if next_offset < total:
-        result["next_cursor"] = _encode_cursor(next_offset)
+        result["next_cursor"] = _encode_cursor(next_offset, tool)
     if extra:
         result.update({k: v for k, v in extra.items() if v is not None})
     return result
@@ -120,9 +122,14 @@ def collection_json(
     if isinstance(page_limit, bool) or not isinstance(page_limit, int) or page_limit < 1 or page_limit > max_limit:
         return error_json("invalid_limit", f"limit must be between 1 and {max_limit}", tool, 400)
     try:
-        start = _decode_cursor(cursor, len(records))
+        start = _decode_cursor(cursor, len(records), tool)
     except ValueError:
-        return error_json("invalid_cursor", "cursor is malformed or out of range", tool, 400)
+        return error_json(
+            "invalid_cursor",
+            f"cursor is malformed, out of range, or was issued by a different tool - reuse only a next_cursor returned by {tool}",
+            tool,
+            400,
+        )
     response_budget = budget or get_max_response_bytes()
     end = min(len(records), start + page_limit)
     selected: list[Any] = []
@@ -133,7 +140,16 @@ def collection_json(
         if len(compact_json(test).encode("utf-8")) > response_budget:
             if not selected:
                 minimal = _payload(tool, summary, key, [_identity(records[index])], len(records), index + 1, extra)
-                minimal["warning"] = "item exceeded response budget; only identifying fields returned"
+                # The item's contents were dropped. _payload computes truncated from
+                # the offset, which is False when this is the only/last record - so
+                # say it explicitly rather than reporting a complete result.
+                minimal["truncated"] = True
+                minimal["returned_count"] = 0
+                minimal["warning"] = (
+                    "item exceeded the response byte budget; its contents were dropped and only identifying "
+                    "fields are shown. Paging cannot recover it - request a narrower read (a semantic tool "
+                    "scoped to one site/element, or a shorter time window), or raise MCP_MAX_RESPONSE_BYTES"
+                )
                 return compact_json(minimal)
             break
         selected = candidate

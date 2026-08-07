@@ -244,7 +244,11 @@ def get_device_diagnostics(
             `vlan_to_port`, and `application_probe` also need a resolvable
             `site` (explicit, or inferred from the element's inventory
             record) — if neither is available, these four return an error
-            rather than guessing.
+            rather than guessing. `port_to_vlan`/`vlan_to_port` additionally
+            require a switch-capable element model; on other models the
+            controller rejects the read with a "does not support switch
+            configuration" message, which means wrong device type, not a
+            failed lookup — don't retry it against the same element.
         element: ION element name, serial number, hardware ID, or exact
             controller ID. Always required.
         site: Site name or controller ID. Optional for `lldp_neighbors`/

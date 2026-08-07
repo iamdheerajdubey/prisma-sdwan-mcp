@@ -28,6 +28,7 @@ RELATIVE_HOURS_CAP = 168
 FLOW_SAMPLE_CAP = 500
 TOP_TALKERS_LIMIT = 10
 LQM_INTERVAL = "5min"
+POINT_METRIC_LAG = timedelta(minutes=5)
 
 LQM_METRICS = [
     {"name": "LqmLatencyPointMetric", "unit": "milliseconds", "statistics": ["AVG"]},
@@ -74,6 +75,20 @@ def _window(hours: float, start_time: str | None, end_time: str | None) -> tuple
     start_s = start.strftime(TIME_FORMAT)
     end_s = end.strftime(TIME_FORMAT)
     return start_s, end_s, {"start_time": start_s, "end_time": end_s, "source": source}
+
+
+def _snapshot_anchor(end_s: str) -> str:
+    """Anchor a point-metric snapshot one interval in the past.
+
+    The point-metric endpoints reject an anchor at or after "now" as a future
+    timestamp, so a default (relative-hours) window whose end is the current
+    time fails outright. Stepping back one collection interval also lands on a
+    bucket the controller has actually finished writing.
+    """
+    parsed = _parse_iso(end_s)
+    if parsed is None:
+        return end_s
+    return (parsed - POINT_METRIC_LAG).strftime(TIME_FORMAT)
 
 
 def _event_payload(
@@ -283,7 +298,13 @@ def get_monitoring(
         limit: Max items to return in this page for list-shaped results
             (`events`, `alarms`, raw `flows`, `probe_metrics`). Capped at
             100 for `events`/`alarms`. Ignored for single-object results
-            (flow digest, `link_metrics`).
+            (flow digest, `link_metrics`) — because `link_metrics` cannot be
+            paginated, a wide window can exceed the server's response byte
+            budget, in which case the whole payload is replaced by an
+            identifying stub plus `"warning": "item exceeded response
+            budget..."`. That warning means the data was dropped, not that
+            no data exists: retry with a smaller `hours` (a multi-day window
+            is the usual cause).
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Only meaningful where `limit` is.
         app: Application ID/name filter — `flows` only. Ignored elsewhere.
@@ -335,20 +356,21 @@ def get_monitoring(
             if not site_id:
                 return error_json("invalid_argument", "site is required for metric operations", tool, 400)
             start, end, window = _window(hours, start_time, end_time)
+            anchor = _snapshot_anchor(end)
             if operation == "link_metrics":
                 filters: dict[str, Any] = {"site": [site_id]}
                 if element_id:
                     filters["element"] = [element_id]
                 bandwidth = execute("compat.monitor_metrics", body={"start_time": start, "end_time": end, "interval": LQM_INTERVAL, "metrics": [{"name": "BandwidthUsage", "statistics": ["average"], "unit": "Mbps"}], "filter": filters})
-                lqm = execute("compat.monitor_lqm_point_metrics", body={"start_time": end, "interval": LQM_INTERVAL, "metrics": LQM_METRICS, "filter": {"site": [site_id]}})
-                result = {"bandwidth": _metric_series(bandwidth), "link_quality": _metric_series(lqm) if raw else _pivot_lqm(lqm), "window": window, "snapshot_time": end, "recorded_telemetry": True}
+                lqm = execute("compat.monitor_lqm_point_metrics", body={"start_time": anchor, "interval": LQM_INTERVAL, "metrics": LQM_METRICS, "filter": {"site": [site_id]}})
+                result = {"bandwidth": _metric_series(bandwidth), "link_quality": _metric_series(lqm) if raw else _pivot_lqm(lqm), "window": window, "snapshot_time": anchor, "recorded_telemetry": True}
                 return single_json(tool, f"Recorded link metrics for site '{site_id}'", "metrics", result)
-            probe = execute("compat.monitor_probe_point_metrics", body={"start_time": end, "interval": LQM_INTERVAL, "metrics": PROBE_METRICS, "filter": {"site": [site_id]}})
+            probe = execute("compat.monitor_probe_point_metrics", body={"start_time": anchor, "interval": LQM_INTERVAL, "metrics": PROBE_METRICS, "filter": {"site": [site_id]}})
             upstream = fail_from_upstream(tool, probe)
             if upstream:
                 return upstream
             result = _metric_series(probe) if raw else _pivot_probe(probe)
-            return collection_json(tool, f"Recorded probe metrics for site '{site_id}'", "probes", result, cursor=cursor, limit=limit, extra={"window": window, "snapshot_time": end, "recorded_telemetry": True})
+            return collection_json(tool, f"Recorded probe metrics for site '{site_id}'", "probes", result, cursor=cursor, limit=limit, extra={"window": window, "snapshot_time": anchor, "recorded_telemetry": True})
 
         action = {
             "aiops_health": "monitoring_aiops.monitor_aiops_health",
@@ -364,8 +386,9 @@ def get_monitoring(
         if upstream:
             return upstream
         rows = records(data)
-        if rows:
-            return collection_json(tool, f"Monitoring operation '{operation}'", "items", rows, cursor=cursor, limit=limit)
+        if rows or isinstance(data, list):
+            payload = rows or data
+            return collection_json(tool, f"Monitoring operation '{operation}'", "items", payload, cursor=cursor, limit=limit)
         return single_json(tool, f"Monitoring operation '{operation}'", "result", data)
     except ValueError as exc:
         return error_json("invalid_argument", str(exc), tool, 400)

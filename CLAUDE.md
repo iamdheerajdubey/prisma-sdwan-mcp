@@ -60,7 +60,7 @@ AI  --intent-->  Semantic tool (prisma_sdwan_mcp_v2/tools/*.py)
 ### Data sources loaded by `catalog.py`
 
 - `data/mcp_registry_get_post.json` — 308 generated, read-only registry actions (source of truth for API shape; never hand-edited to add behavior).
-- `data/curated_capabilities.json` — 8 hand-curated actions absent from the generated registry (topology, event query, flow monitor, bandwidth/LQM/probe point metrics, VPN-link status/state). Each is `requires_live_test` by default; `read_capability` blocks unverified curated actions unless `MCP_ALLOW_UNVERIFIED_COMPAT=1`.
+- `data/curated_capabilities.json` — 8 hand-curated actions absent from the generated registry (topology, event query, flow monitor, bandwidth/LQM/probe point metrics, VPN-link status/state). All 8 were live-validated against a real tenant on 2026-08-07 (`docs/LIVE_VALIDATION.md` Step 6), so `requires_live_test` is now false and the `expert_blocked_by_default` list in `registry_overrides.yaml` is empty — `read_capability` can execute them directly. A future curated action that ships unverified should set `requires_live_test: true` **and** be added to `expert_blocked_by_default`, which is the list the gate actually reads; `MCP_ALLOW_UNVERIFIED_COMPAT=1` overrides it.
 - `data/registry_overrides.yaml` — human aliases and safety config layered on top; does not rewrite the source registry.
 
 Catalog discovery is **enumeration, not search**: `list_capabilities()` lists domains, `list_capabilities(domain=...)` returns every action in that domain in full every time. There is no free-text matching against descriptions.

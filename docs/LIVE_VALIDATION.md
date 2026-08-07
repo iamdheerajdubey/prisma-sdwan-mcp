@@ -161,13 +161,30 @@ get_monitoring(operation="probe_metrics", site=<site>)
 
 Confirm configured probes are returned or a valid empty result is produced when no probes exist.
 
-After all eight pass, set:
+### Status: completed 2026-08-07
 
-```text
-MCP_ALLOW_UNVERIFIED_COMPAT=true
-```
+All eight were executed against a live tenant during the round-2 AI-consumption
+audit, through both `read_capability` and their semantic tools, and returned
+correct data. Consequently:
 
-This only allows those exact actions through the generic `read_capability` expert tool. The semantic tools already use them directly, independent of this flag.
+- `requires_live_test` is `false` for all eight in `curated_capabilities.json`;
+- `expert_blocked_by_default` in `registry_overrides.yaml` is now empty, so
+  `read_capability` executes them without `MCP_ALLOW_UNVERIFIED_COMPAT`;
+- their `body_schema` entries were filled in from the request bodies the
+  semantic tools actually send, so `list_capabilities` now shows a caller what
+  each one requires instead of an untyped object.
+
+Two behaviors were fixed as a result and are worth knowing when re-testing:
+the point-metric actions (`compat.monitor_lqm_point_metrics`,
+`compat.monitor_probe_point_metrics`) reject a snapshot anchored at "now" as a
+future timestamp — anchor at least one interval in the past; and
+`compat.topology` accepts only `type: "anynet"`, which is **not** the same
+vocabulary as `get_topology`'s `view` argument.
+
+A future curated action that ships unverified must set `requires_live_test: true`
+**and** be listed in `expert_blocked_by_default` — the gate reads the list, not
+the flag. `MCP_ALLOW_UNVERIFIED_COMPAT=true` overrides the list. The semantic
+tools use curated actions directly, independent of either.
 
 ## Step 7 - Generic registry spot checks
 

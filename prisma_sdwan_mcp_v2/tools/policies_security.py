@@ -190,9 +190,9 @@ def get_security(
             must instead be the exact SD-WAN app controller ID (not a
             search term) — those two operations do not resolve names.
         cursor: Opaque pagination token copied from a previous response's
-            `next_cursor`. Omit on the first call. Has no effect when the
-            result is empty — an operation with zero matches returns a
-            `result` key instead of a typed collection key.
+            `next_cursor`. Omit on the first call. An operation with zero
+            matches still returns the same collection key with an empty
+            list, not a different shape.
         limit: Max items to return in this page. Omit to use the server
             default page size.
     """
@@ -240,8 +240,9 @@ def get_security(
         if upstream:
             return upstream
         items = records(data)
-        if items:
-            return collection_json(tool, f"Security operation '{operation}' returned {len(items)} item(s)", "items", items, cursor=cursor, limit=limit)
+        if items or isinstance(data, list):
+            payload = items or data
+            return collection_json(tool, f"Security operation '{operation}' returned {len(payload)} item(s)", "items", payload, cursor=cursor, limit=limit)
         return single_json(tool, f"Security operation '{operation}'", "result", data)
     except Exception as exc:
         return handle_error(tool, exc)

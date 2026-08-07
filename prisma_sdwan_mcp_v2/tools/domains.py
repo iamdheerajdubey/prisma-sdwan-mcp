@@ -95,8 +95,9 @@ def _finish(tool: str, operation: str, data, cursor: str | None, limit: int | No
     if upstream:
         return upstream
     items = records(data)
-    if items:
-        return collection_json(tool, f"Operation '{operation}' returned {len(items)} item(s)", "items", items, cursor=cursor, limit=limit, extra=extra)
+    if items or isinstance(data, list):
+        payload = items or data
+        return collection_json(tool, f"Operation '{operation}' returned {len(payload)} item(s)", "items", payload, cursor=cursor, limit=limit, extra=extra)
     return single_json(tool, f"Operation '{operation}'", "result", data, extra=extra)
 
 
@@ -196,17 +197,19 @@ def get_multicast(
     """Inspect multicast configuration, RPs, peer groups, routes, IGMP, and WAN status.
 
     Args:
-        operation: Which read to run. No params required: ``peer_groups``.
-            Requires ``site`` only: ``source_rps``, ``source_site_config``.
-            ``routes`` and ``igmp_memberships`` accept optional ``site``
-            and/or ``element`` as filters (unfiltered if both omitted).
-            Requires ``site`` + ``element``: ``config``, ``dynamic_rps``,
-            ``rps``, ``protocol_parameters``, ``wan_status``.
-        site: Site name or controller ID. Required or optional depending on
-            `operation` (see above); resolved the same way as `find_site`.
-        element: Element name or controller ID. Required or optional
-            depending on `operation` (see above); resolved the same way as
-            `find_element`.
+        operation: Which read to run. No params accepted: ``peer_groups``,
+            ``routes``, ``igmp_memberships``. Requires ``site`` only:
+            ``source_rps``, ``source_site_config``. Requires ``site`` +
+            ``element``: ``config``, ``dynamic_rps``, ``rps``,
+            ``protocol_parameters``, ``wan_status``.
+        site: Site name or controller ID. Required by the operations listed
+            above; resolved the same way as `find_site`. Optional narrowing
+            filter for ``routes``/``igmp_memberships``, which are otherwise
+            tenant-wide.
+        element: Element name or controller ID. Required by the operations
+            listed above; resolved the same way as `find_element`. Optional
+            narrowing filter for ``routes``/``igmp_memberships``, and may be
+            combined with `site`.
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
@@ -224,7 +227,9 @@ def get_multicast(
             data = execute(action, {"site_id": site_id})
         elif operation in {"routes", "igmp_memberships"}:
             action = "multicast.multicastroutes_query" if operation == "routes" else "multicast.multicastigmpmemberships_query"
-            body = {"query_params": {"site_id": site_id, "element_id": element_id}} if (site_id or element_id) else {}
+            # query_params values must be operator objects: a bare string 400s.
+            filters = {k: {"eq": v} for k, v in (("site_id", site_id), ("element_id", element_id)) if v}
+            body = {"query_params": filters} if filters else {}
             data = execute(action, body=body)
         else:
             if not site_id or not element_id:
@@ -403,7 +408,11 @@ def get_identity(
             ``element_users``. Requires ``object_id``: ``element_user_access``.
         object_id: Element-user ID (from an ``element_users`` result's `id`
             field). Required only for ``element_user_access``; ignored
-            otherwise.
+            otherwise. An ID that does not exist is **not** reported as an
+            error — it returns an empty list, exactly like a valid user
+            with no access records. Confirm the ID came from an
+            ``element_users`` result before reading an empty response as
+            "this user has no access".
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
@@ -576,12 +585,16 @@ def get_platform(
             ``licenses``, ``skus``, ``machines``, ``external_ca``,
             ``otp_access``, ``hub_service_endpoints``. Requires ``machine``:
             ``machine_system_status``, ``machine_software``. ``reports``
-            takes optional ``folder`` as a filter.
+            takes no parameters — see `folder`.
         machine: Machine name, hardware ID, serial number, or controller
             ID. Required only for the two machine-scoped operations;
             resolved the same way as `find_resource(kind="machine")`.
-        folder: Optional folder path to filter ``reports`` by. Ignored by
-            every other operation.
+        folder: Not usable. The endpoint ignores it — every value returns
+            zero items, including a folder `path` copied verbatim from an
+            unfiltered ``reports`` result — so passing it is rejected with a
+            400 rather than returning a misleading empty list. Call
+            ``reports`` unfiltered and select from the returned
+            `path`/`type` fields yourself.
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
@@ -610,8 +623,16 @@ def get_platform(
             action = "platform_specialized.machinesystemstatus" if operation == "machine_system_status" else "platform_specialized.software"
             data = execute(action, {"machine_id": machine_rec["id"]})
         elif operation == "reports":
-            body = {"folder": folder} if folder else {}
-            data = execute("platform_specialized.reportsdir_query", body=body)
+            if folder:
+                return error_json(
+                    "invalid_argument",
+                    "folder filtering is not supported by this endpoint: every value returns zero items, "
+                    "including a folder path copied verbatim from an unfiltered result. Call reports without "
+                    "'folder' and select from the returned path/type fields",
+                    tool,
+                    400,
+                )
+            data = execute("platform_specialized.reportsdir_query", body={})
         else:
             return error_json("invalid_argument", f"unsupported platform operation '{operation}'", tool, 400)
         return _finish(tool, operation, data, cursor, limit)

@@ -73,7 +73,26 @@ class CapabilityExecutor:
         value = {} if body is None else body
         if not isinstance(value, dict):
             raise CapabilityExecutionError("POST body must be a JSON object")
+        if "retrieved_fields" in value:
+            # The controller does not narrow the record: it returns every field and
+            # replaces each unrequested one with a fabricated placeholder (site_id
+            # becomes "1", role becomes "NONE") while id/name stay correct, so the
+            # answer looks authoritative and is wrong. No value of
+            # retrieved_fields_mask avoids this. Refuse rather than return bad data.
+            raise CapabilityExecutionError(
+                "retrieved_fields is not supported: the controller returns the full record with every "
+                "unrequested field replaced by a fabricated value, so the response would look valid but "
+                "be wrong. Omit it and page the full records with the tool's own limit/cursor instead"
+            )
         if action.body_schema:
+            declared = action.body_schema.get("properties") if isinstance(action.body_schema, dict) else None
+            if isinstance(declared, dict):
+                unknown = sorted(set(value) - set(declared))
+                if unknown:
+                    raise CapabilityExecutionError(
+                        f"Unknown body field(s) for {action.action_id}: {', '.join(unknown)}. "
+                        f"Valid fields: {', '.join(sorted(declared))}"
+                    )
             schema = CapabilityExecutor._normalize_schema(action.body_schema)
             try:
                 Draft202012Validator(schema).validate(value)
