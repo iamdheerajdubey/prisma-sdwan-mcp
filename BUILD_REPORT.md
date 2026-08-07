@@ -5,12 +5,12 @@
 - Registry-first Prisma SD-WAN MCP v2 codebase.
 - 26 AI-visible tools.
 - 308 source-registry actions loaded unchanged.
-- 8 v1 compatibility actions represented explicitly in a separate overlay.
+- 8 hand-curated actions represented explicitly in a separate overlay (registry gap-fill).
 - Central name/ID resolution with no ambiguous auto-selection.
 - Generic GET/POST SDK dispatcher driven by registry metadata.
 - Recursive secret redaction for all registry responses.
 - Cursor pagination and response byte guardrails.
-- V1-style auth refresh and bounded transient retries.
+- Resilient auth refresh and bounded transient retries.
 - Derived basenet topology workflow.
 - Composite BGP status with optional prefix-health enrichment.
 - Event/alarm, flow digest, link metric, and probe metric workflows.
@@ -30,7 +30,7 @@ Static MCP registration with dependency stubs: PASS
   resources: 5
   prompts: 4
 Registry source actions: 308
-V1 compatibility actions: 8
+Curated compatibility actions: 8
 Registry URL entries with generated unknown placeholder: 11
 Sensitive schema/output references detected by audit: 15
 ```
@@ -44,4 +44,4 @@ The container does not have the vendor SDK/FastMCP installed and outbound packag
 
 There is also no access to your live Prisma SD-WAN tenant.
 
-Follow `docs/LIVE_VALIDATION.md` before production cutover. It specifically covers the 8 v1 compatibility calls, representative registry-domain calls, secret-redaction checks, and v1/v2 parity testing.
+Follow `docs/LIVE_VALIDATION.md` before production cutover. It specifically covers the 8 curated compatibility calls, representative registry-domain calls, and secret-redaction checks.

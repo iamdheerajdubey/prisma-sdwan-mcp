@@ -236,8 +236,8 @@ def get_monitoring(
 ) -> str:
     """Unified operational monitoring for incidents, flows, metrics, and AIOps.
 
-    Events/alarms preserve v1's warning: an unwindowed call only sees the most
-    recent records and may miss an older incident. Use ``start_time`` and
+    Events/alarms carry an important warning: an unwindowed call only sees the
+    most recent records and may miss an older incident. Use ``start_time`` and
     ``end_time`` for incident analysis. Flow digest mode summarizes application,
     path, action, and top talkers; ``raw=true`` returns records. Link/probe
     metrics are recorded telemetry, not an active ping test.

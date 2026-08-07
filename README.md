@@ -2,9 +2,7 @@
 
 Registry-first MCP server for Palo Alto Networks Prisma SD-WAN.
 
-## What changed from v1
-
-V1 had strong operator behavior but each tool was tied directly to specific SDK calls. V2 keeps the strong behavior and changes the plumbing:
+## How it's built
 
 ```text
 AI / operator
@@ -16,12 +14,12 @@ name/ID resolver + workflow logic
 registry-driven capability executor
      |
 308 generated registry actions
-+ 8 clearly labeled v1 compatibility actions
++ 8 clearly labeled curated additions
      |
 Prisma SASE SDK
 ```
 
-The source registry is not rewritten. V2 loads it as the API source of truth and adds a small override file for human aliases and response-safety rules.
+The source registry is not rewritten. It's loaded as the API source of truth, with a small override file layered on top for human aliases and response-safety rules.
 
 ## AI-visible tool count: 26
 
@@ -36,11 +34,11 @@ The aim is not one tool per API. The aim is one tool per common operator intent,
 
 `read_capability` provides guarded access to every source-registry action, so an API does not need a dedicated MCP tool to remain available.
 
-## V1 behavior deliberately preserved
+## Core design principles
 
 - Human name -> controller ID resolution.
 - Exact match preferred over substring match.
-- Multiple matches are returned; V2 never silently picks one.
+- Multiple matches are returned; the server never silently picks one.
 - Element records can supply `site_id` automatically.
 - Workflow tools can combine several API calls.
 - `resolve_path` never invents a circuit mapping.
@@ -50,7 +48,7 @@ The aim is not one tool per API. The aim is one tool per common operator intent,
 - Compact list output; richer single-object/workflow output.
 - Local site-config generation remains separate from network mutation.
 
-## New v2 safeguards
+## Safeguards
 
 ### Central secret redaction
 
@@ -68,9 +66,9 @@ The generated registry contains 308 read-only actions. `read_capability` can exe
 4. POST body is checked against normalized registry schema hints;
 5. response is redacted and size-limited.
 
-### V1 compatibility overlay
+### Curated registry additions
 
-Eight useful v1 SDK calls are not represented in the generated 308-action registry:
+Eight useful SDK calls are not represented in the generated 308-action registry:
 
 - topology
 - event query
@@ -81,7 +79,7 @@ Eight useful v1 SDK calls are not represented in the generated 308-action regist
 - VPN-link status
 - VPN-link state
 
-They are stored in `prisma_sdwan_mcp_v2/data/v1_compat_capabilities.json` rather than hidden in tool code. They are available to the semantic tools because v1 already used them, but the generic `read_capability` blocks them by default until live validation is completed.
+They are stored in `prisma_sdwan_mcp_v2/data/curated_capabilities.json` rather than hidden in tool code. The semantic tools use them directly, but the generic `read_capability` blocks them by default until live validation is completed.
 
 See `docs/LIVE_VALIDATION.md`.
 
@@ -149,4 +147,3 @@ Live tenant/API validation is intentionally separate. Follow `docs/LIVE_VALIDATI
 1. `docs/ARCHITECTURE.md`
 2. `docs/TOOL_CATALOG.md`
 3. `docs/LIVE_VALIDATION.md`
-4. `docs/V1_TO_V2.md`

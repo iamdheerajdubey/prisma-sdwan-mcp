@@ -59,9 +59,9 @@ def get_routing(
     Site and element accept names or IDs. ``bgp_status`` returns all peer states
     in one call where supported. ``bgp_prefixes`` resolves a specific BGP peer
     by peer ID/name/address and then retrieves reachable, advertised, or
-    discovered prefixes. For ``bgp_status``, ``include_prefixes=true`` keeps
-    v1's composite behavior: reachable/filtered prefix counts are added per
-    peer and Established peers receiving zero reachable prefixes are flagged.
+    discovered prefixes. For ``bgp_status``, ``include_prefixes=true`` enables
+    composite behavior: reachable/filtered prefix counts are added per peer
+    and Established peers receiving zero reachable prefixes are flagged.
     OSPF neighbor/prefix operations enumerate OSPF configs and fan out safely.
     """
     tool = "get_routing"

@@ -6,7 +6,7 @@ def test_catalog_counts_and_domains():
     assert catalog.registry_action_count == 308
     assert catalog.compat_action_count == 8
     assert catalog.action_count == 316
-    assert len([d for d in catalog.domains() if d["domain"] != "compat_v1"]) == 18
+    assert len([d for d in catalog.domains() if d["domain"] != "curated"]) == 18
 
 
 def test_important_capabilities_exist():

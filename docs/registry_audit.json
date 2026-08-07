@@ -9,9 +9,9 @@
       "action_count": 6
     },
     {
-      "domain": "compat_v1",
-      "title": "V1 Compatibility",
-      "description": "Read-only capabilities proven useful in v1 but absent from the generated registry.",
+      "domain": "curated",
+      "title": "Curated Additions",
+      "description": "Read-only capabilities that fill gaps in the generated registry, added by hand.",
       "action_count": 8
     },
     {

@@ -131,7 +131,7 @@ class CapabilityExecutor:
     @staticmethod
     def _fallback_candidates(action: ActionSpec, paths: dict[str, Any], body: dict[str, Any] | None) -> list[tuple[list[Any], dict[str, Any]]]:
         ordered = [paths[p.name] for p in action.path_parameters if p.name in paths]
-        api_kw = {"api_version": action.api_version} if action.api_version and action.source == "v1_compat" else {}
+        api_kw = {"api_version": action.api_version} if action.api_version and action.source == "curated" else {}
         if action.http_method == "GET":
             candidates = [(ordered, api_kw), ([], {**paths, **api_kw})]
         else:

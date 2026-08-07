@@ -46,7 +46,7 @@ def _action_from_registry(domain: str, item: dict[str, Any]) -> ActionSpec:
 def _action_from_compat(item: dict[str, Any]) -> ActionSpec:
     return ActionSpec(
         action_id=item["action_id"],
-        domain=item.get("domain", "compat_v1"),
+        domain=item.get("domain", "curated"),
         sdk_call=item["sdk_call"],
         http_method=str(item["http_method"]).upper(),
         api_version=item.get("api_version"),
@@ -54,13 +54,13 @@ def _action_from_compat(item: dict[str, Any]) -> ActionSpec:
         path_parameters=tuple(_parameter(p) for p in item.get("path_parameters") or []),
         body_schema=item.get("body_schema"),
         output_fields=tuple(item.get("output_fields") or []),
-        source="v1_compat",
+        source="curated",
         requires_live_test=bool(item.get("requires_live_test", True)),
     )
 
 
 class CapabilityCatalog:
-    """Validated in-memory view of the registry plus the small v1 compatibility overlay."""
+    """Validated in-memory view of the registry plus a small curated overlay for registry gaps."""
 
     def __init__(
         self,
@@ -70,7 +70,7 @@ class CapabilityCatalog:
     ):
         base = data_dir()
         self.registry_path = registry_path or base / "mcp_registry_get_post.json"
-        self.compat_path = compat_path or base / "v1_compat_capabilities.json"
+        self.compat_path = compat_path or base / "curated_capabilities.json"
         self.overrides_path = overrides_path or base / "registry_overrides.yaml"
         self._actions: dict[str, ActionSpec] = {}
         self._domains: dict[str, dict[str, Any]] = {}
@@ -101,11 +101,11 @@ class CapabilityCatalog:
         if self.compat_path.exists():
             compat = json.loads(self.compat_path.read_text(encoding="utf-8"))
             self._domains.setdefault(
-                "compat_v1",
+                "curated",
                 {
-                    "domain": "compat_v1",
-                    "title": "V1 Compatibility",
-                    "description": "Read-only capabilities proven useful in v1 but absent from the generated registry.",
+                    "domain": "curated",
+                    "title": "Curated Additions",
+                    "description": "Read-only capabilities that fill gaps in the generated registry, added by hand.",
                 },
             )
             for raw in compat.get("actions") or []:
@@ -146,7 +146,7 @@ class CapabilityCatalog:
 
     @property
     def compat_action_count(self) -> int:
-        return sum(1 for action in self._actions.values() if action.source == "v1_compat")
+        return sum(1 for action in self._actions.values() if action.source == "curated")
 
     def get(self, action_id: str) -> ActionSpec:
         try:

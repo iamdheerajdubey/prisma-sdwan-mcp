@@ -130,7 +130,7 @@ def search_capabilities(
 
     This is the discovery companion to ``read_capability``. Normal operator
     workflows should prefer semantic tools. The catalog contains the 308 source
-    registry actions plus a small, labeled v1 compatibility overlay.
+    registry actions plus a small, labeled curated overlay for registry gaps.
     """
     tool = "search_capabilities"
     try:
@@ -175,7 +175,7 @@ def read_capability(
     action_id. Parameters are validated against the registry and every response
     passes through central recursive secret redaction and response-size limits.
 
-    V1-compat actions that still need live verification are blocked here by
+    Curated actions that still need live verification are blocked here by
     default; set MCP_ALLOW_UNVERIFIED_COMPAT=true only after completing the
     validation checklist shipped with this project.
     """
@@ -190,7 +190,7 @@ def read_capability(
         if runtime.catalog.expert_blocked(action_id) and not allow_unverified_compat():
             return error_json(
                 "requires_live_test",
-                "this v1 compatibility capability is blocked from generic execution until live validation is completed",
+                "this curated capability is blocked from generic execution until live validation is completed",
                 tool,
                 403,
                 {"action_id": action_id},
@@ -237,9 +237,8 @@ def _transport(item: dict[str, Any]) -> str:
 def resolve_path(site: str, path_id: str) -> str:
     """Resolve an opaque path ID to a WAN interface, AnyNet link, or VPN leg.
 
-    This preserves one of v1's strongest troubleshooting behaviors: unresolved
-    IDs are reported explicitly rather than guessed. ``site`` may be a site
-    name or controller ID.
+    By design, unresolved IDs are reported explicitly rather than guessed.
+    ``site`` may be a site name or controller ID.
     """
     tool = "resolve_path"
     try:

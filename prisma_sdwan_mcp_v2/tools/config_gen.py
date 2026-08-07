@@ -66,9 +66,9 @@ def generate_site_config(
     """Generate a validated local YAML site file for downstream automation.
 
     This tool writes only to ``PRISMA_MCP_OUTPUT_DIR``. It does **not** change
-    Prisma SD-WAN. It is retained from v1 because it cleanly separates AI
-    planning/data gathering from the mutation path; actual network changes can
-    remain under Ansible/change-control.
+    Prisma SD-WAN. It exists to cleanly separate AI planning/data gathering
+    from the mutation path; actual network changes can remain under
+    Ansible/change-control.
     """
     tool = "generate_site_config"
     try:

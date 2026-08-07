@@ -4,7 +4,7 @@ Source: `mcp_registry_get_post.json`.
 
 - 18 generated domains.
 - 308 generated read-only actions.
-- V2 adds 8 read-only v1 compatibility actions, giving 316 executable catalog entries.
+- V2 adds 8 read-only curated compatibility actions, giving 316 executable catalog entries.
 - Registry API version and SDK call data are used by the generic executor.
 - The monitoring/AIOps URL templates contain an `unknown_1` placeholder in the generated source. V2 uses the verified SDK call rather than constructing raw URLs from that placeholder.
 - Some resources appear in more than one logical domain (for example element users). Stable `action_id` values keep them distinct.

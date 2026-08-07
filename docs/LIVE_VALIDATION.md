@@ -22,7 +22,7 @@ The build environment did not have `fastmcp` or `prisma_sase` installed and did 
 2. Real `prisma_sase==6.8.1b1` generated method signatures for all 308 registry calls.
 3. Authentication and tenant-region behavior.
 4. Live response shapes and tenant-specific permissions.
-5. The eight v1 compatibility actions listed below.
+5. The eight curated compatibility actions listed below.
 
 ## Step 1 - Install and run unit tests
 
@@ -57,7 +57,7 @@ prisma-sdwan-mcp-v2 --transport stdio
 Confirm startup reports:
 
 ```text
-308 registry actions + 8 v1 compatibility actions
+308 registry actions + 8 curated compatibility actions
 ```
 
 ## Step 4 - Basic semantic smoke tests
@@ -91,9 +91,9 @@ No returned JSON should expose values whose key contains:
 
 The value should be `[REDACTED]`.
 
-## Step 6 - Validate the eight v1 compatibility actions
+## Step 6 - Validate the eight curated compatibility actions
 
-These calls were used by v1 but are absent from the generated 308-action registry. They are the highest-priority live tests.
+These calls fill gaps in the generated 308-action registry and were added by hand. They are the highest-priority live tests.
 
 ### A. `compat.topology`
 
@@ -167,7 +167,7 @@ After all eight pass, set:
 MCP_ALLOW_UNVERIFIED_COMPAT=true
 ```
 
-This only allows those exact actions through the generic `read_capability` expert tool. The semantic tools already use them because they are inherited from known v1 behavior.
+This only allows those exact actions through the generic `read_capability` expert tool. The semantic tools already use them directly, independent of this flag.
 
 ## Step 7 - Generic registry spot checks
 
@@ -216,9 +216,9 @@ Test large tenants/catalogs:
 
 Confirm `next_cursor` is returned rather than huge responses or silent truncation.
 
-## Step 10 - Parallel v1/v2 parity
+## Step 10 - Operational sanity check
 
-Before replacing v1, run the same operator questions against both servers:
+Run the same operator questions you would ask in real troubleshooting, and manually cross-check a sample of answers against the Prisma SD-WAN controller UI/API directly:
 
 - site lookup
 - element lookup
@@ -232,7 +232,7 @@ Before replacing v1, run the same operator questions against both servers:
 - application lookup
 - policy sets/zones/WAN networks
 
-V2 does not need byte-for-byte identical JSON. It should preserve or improve the operational meaning and should never be less safe about ambiguity or sensitive fields.
+Confirm each answer matches what the controller shows, and that the server is never less safe about ambiguity or sensitive fields.
 
 ## Production cutover rule
 
@@ -242,4 +242,4 @@ Cut over when:
 - the eight compatibility actions pass;
 - no secret leakage is observed;
 - representative registry actions pass in every domain;
-- v1/v2 parity prompts give equivalent or better operational answers.
+- operator questions produce accurate answers when cross-checked against the controller directly.

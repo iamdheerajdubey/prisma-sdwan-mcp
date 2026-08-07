@@ -54,7 +54,7 @@ def main(argv=None) -> int:
     logging.getLogger("uvicorn.access").setLevel(logging.INFO)
     logging.getLogger("fastmcp").setLevel(logging.INFO)
     print(
-        f"Prisma SD-WAN MCP v2 ({args.transport}) - {runtime.catalog.registry_action_count} registry actions + {runtime.catalog.compat_action_count} v1 compatibility actions",
+        f"Prisma SD-WAN MCP v2 ({args.transport}) - {runtime.catalog.registry_action_count} registry actions + {runtime.catalog.compat_action_count} curated compatibility actions",
         file=sys.stderr,
     )
     try:

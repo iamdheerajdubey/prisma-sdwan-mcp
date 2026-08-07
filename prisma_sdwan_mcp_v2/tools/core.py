@@ -222,14 +222,13 @@ def get_topology(
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
-    """Return AnyNet topology with v1's important ID semantics preserved.
+    """Return AnyNet topology with careful ID semantics preserved.
 
     Summary mode returns counts and links that are not up. Full mode requires a
-    site or status filter to avoid flooding the model. ``view='basenet'`` keeps
-    v1's useful derived-underlay logic: it takes VPN leg IDs from AnyNet and
-    resolves each through live vpnlink status, exposing element/interface-level
-    underlay information. A link's ``path_id`` and controller ``anynet_link_id``
-    are kept distinct.
+    site or status filter to avoid flooding the model. ``view='basenet'`` derives
+    the underlay: it takes VPN leg IDs from AnyNet and resolves each through live
+    vpnlink status, exposing element/interface-level underlay information. A
+    link's ``path_id`` and controller ``anynet_link_id`` are kept distinct.
     """
     tool = "get_topology"
     try:

@@ -22,7 +22,7 @@ MAX_RETRY_WALL_SECONDS = 12.0
 
 
 class PrismaSDWANClient:
-    """Thin, resilient SDK client inherited from the strongest v1 behavior."""
+    """Thin, resilient SDK client with careful auth refresh and retry handling."""
 
     def __init__(self, sdk: Any | None = None):
         self.controller = get_controller()
@@ -107,7 +107,7 @@ class PrismaSDWANClient:
             result = self.sdk.interactive.login_secret(client_id=client_id, client_secret=client_secret, tsg_id=tsg_id)
             if not result:
                 raise RuntimeError("Authentication failed. Check credentials and TSG ID.")
-            # v1 used profile as a cheap login validation and region bootstrap.
+            # profile doubles as a cheap login validation and region bootstrap call.
             self.sdk.get.profile()
             lifetime = self._token_lifetime(result) or FALLBACK_TOKEN_SECONDS
             self.token_expiry = time.time() + max(1.0, lifetime - TOKEN_SAFETY_MARGIN_SECONDS)

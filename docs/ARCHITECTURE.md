@@ -42,7 +42,7 @@ Prisma SASE SDK
 Loads:
 
 - `data/mcp_registry_get_post.json` — 308 generated read-only actions.
-- `data/v1_compat_capabilities.json` — 8 v1-used actions absent from the generated registry.
+- `data/curated_capabilities.json` — 8 hand-curated actions absent from the generated registry.
 - `data/registry_overrides.yaml` — human aliases and safety configuration.
 
 It validates unique action IDs, supported methods, SDK call names, and path-parameter definitions.
@@ -69,7 +69,7 @@ Provides the stable v2 response contract, cursor pagination, byte-budget enforce
 
 ### `client.py`
 
-Carries forward v1's reliable authentication behavior:
+Handles authentication end-to-end:
 
 - lazy login;
 - token lifetime handling;
