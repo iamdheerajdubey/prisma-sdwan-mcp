@@ -204,8 +204,8 @@ def get_interfaces(
     """Retrieve interface configuration and/or operational state for one element.
 
     If ``interface`` is omitted and status is requested, the tool enumerates the
-    element interfaces then fans out to each status endpoint up to the fan-out ceiling (default 100)
-    . Individual interface failures remain inline.
+    element interfaces then fans out to each status endpoint up to the fan-out ceiling
+    (default 100). Individual interface failures remain inline.
 
     Args:
         element: Element name, serial number, hardware ID, or exact

@@ -89,7 +89,7 @@ def get_routing(
             offered before filtering). Ignored for every other operation.
         include_prefixes: For `bgp_status` only. When true, also fetches
             per-peer reachable-prefix counts (one extra API call per peer,
-            bounded by the server fan-out limit (default 100)) and flags any Established
+            bounded by the server fan-out limit, default 100) and flags any Established
             peer with zero reachable prefixes via
             `established_zero_prefixes` — a fast way to spot a session
             that's up but not passing routes. Leave false for a quick
