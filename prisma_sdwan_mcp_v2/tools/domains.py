@@ -90,14 +90,14 @@ PlatformOperation = Literal[
 ]
 
 
-def _finish(tool: str, operation: str, data, cursor: str | None, limit: int | None, extra: dict | None = None) -> str:
+def _finish(tool: str, operation: str, data, cursor: str | None, limit: int | None, extra: dict | None = None, detail: str | None = None) -> str:
     upstream = fail_from_upstream(tool, data)
     if upstream:
         return upstream
     items = records(data)
     if items or isinstance(data, list):
         payload = items or data
-        return collection_json(tool, f"Operation '{operation}' returned {len(payload)} item(s)", "items", payload, cursor=cursor, limit=limit, extra=extra)
+        return collection_json(tool, f"Operation '{operation}' returned {len(payload)} item(s)", "items", payload, cursor=cursor, limit=limit, detail=detail, extra=extra)
     return single_json(tool, f"Operation '{operation}'", "result", data, extra=extra)
 
 
@@ -307,6 +307,7 @@ def get_cellular(
     machine: Optional[str] = None,
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
+    detail: Optional[Literal["compact", "full"]] = None,
 ) -> str:
     """Inspect cellular modules, firmware status, APN profiles, and module images.
 
@@ -344,7 +345,7 @@ def get_cellular(
                 return error_json("invalid_argument", "element is required", tool, 400)
             element_rec = resolve("element", element)
             data = execute("cellular.element_cellular_modules", {"element_id": element_rec["id"]})
-        return _finish(tool, operation, data, cursor, limit)
+        return _finish(tool, operation, data, cursor, limit, detail=detail)
     except Exception as exc:
         return handle_error(tool, exc)
 
@@ -355,6 +356,7 @@ def get_software(
     element: Optional[str] = None,
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
+    detail: Optional[Literal["compact", "full"]] = None,
 ) -> str:
     """Inspect element software state/status and tenant-wide upgrade/template status.
 
@@ -387,7 +389,7 @@ def get_software(
                 "template_deployments": "software_upgrades.bulkconfigurations_sitetemplates_deployments_query",
             }[operation]
             data = execute(action, body={})
-        return _finish(tool, operation, data, cursor, limit)
+        return _finish(tool, operation, data, cursor, limit, detail=detail)
     except Exception as exc:
         return handle_error(tool, exc)
 
@@ -398,6 +400,7 @@ def get_identity(
     object_id: Optional[str] = None,
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
+    detail: Optional[Literal["compact", "full"]] = None,
 ) -> str:
     """Inspect directory/tenant identity state. Session/token fields are always redacted centrally.
 
@@ -440,7 +443,7 @@ def get_identity(
             data = execute("users_identity.elementusers_access", {"elementuser_id": object_id.strip()})
         else:
             return error_json("invalid_argument", f"unsupported identity operation '{operation}'", tool, 400)
-        return _finish(tool, operation, data, cursor, limit)
+        return _finish(tool, operation, data, cursor, limit, detail=detail)
     except Exception as exc:
         return handle_error(tool, exc)
 
@@ -452,6 +455,7 @@ def get_service_connections(
     element: Optional[str] = None,
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
+    detail: Optional[Literal["compact", "full"]] = None,
 ) -> str:
     """Inspect service connections, endpoints, binding maps, service labels, and extensions.
 
@@ -497,7 +501,7 @@ def get_service_connections(
             data = execute("service_connections_extensions.element_extensions", {"site_id": site_id, "element_id": element_id})
         else:
             return error_json("invalid_argument", f"unsupported service connection operation '{operation}'", tool, 400)
-        return _finish(tool, operation, data, cursor, limit, {"site_id": site_id, "element_id": element_id})
+        return _finish(tool, operation, data, cursor, limit, {"site_id": site_id, "element_id": element_id}, detail=detail)
     except Exception as exc:
         return handle_error(tool, exc)
 
@@ -574,6 +578,7 @@ def get_platform(
     folder: Optional[str] = None,
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
+    detail: Optional[Literal["compact", "full"]] = None,
 ) -> str:
     """Inspect tenant/platform metadata, licenses, SKUs, machines, and reports.
 
@@ -635,6 +640,6 @@ def get_platform(
             data = execute("platform_specialized.reportsdir_query", body={})
         else:
             return error_json("invalid_argument", f"unsupported platform operation '{operation}'", tool, 400)
-        return _finish(tool, operation, data, cursor, limit)
+        return _finish(tool, operation, data, cursor, limit, detail=detail)
     except Exception as exc:
         return handle_error(tool, exc)

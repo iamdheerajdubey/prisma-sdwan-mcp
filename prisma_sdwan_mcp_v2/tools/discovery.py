@@ -245,6 +245,7 @@ def read_capability(
     body: Optional[dict[str, Any]] = None,
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
+    detail: Optional[Literal["compact", "full"]] = None,
 ) -> str:
     """Execute one exact read-only registry capability as an expert escape hatch.
 
@@ -282,6 +283,12 @@ def read_capability(
             Omit to use the server default page size. This is the tool's own
             paging, applied after the response arrives — prefer it over a
             ``limit`` field in `body`.
+        detail: ``"compact"`` (default) lets a large response drop fields that
+            neither identify a record nor report its condition, so more records
+            fit in one reply; whatever it held back is listed in
+            ``omitted_fields``. Pass ``"full"`` to get every field of every
+            record instead, at the cost of fewer records per page. Small
+            responses are unaffected either way.
     """
     tool = "read_capability"
     if not expert_tool_enabled():
@@ -312,6 +319,7 @@ def read_capability(
                 item_records if item_records else value,
                 cursor=cursor,
                 limit=limit,
+                detail=detail,
                 extra={"action_id": action_id, "source": action.source, "api_version": action.api_version},
             )
         return single_json(
