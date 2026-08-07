@@ -1,12 +1,12 @@
 import ast
 from pathlib import Path
 
-from prisma_sdwan_mcp_v2.catalog import CapabilityCatalog
+from prisma_sdwan_mcp.catalog import CapabilityCatalog
 
 
 def test_literal_execute_references_exist():
     catalog = CapabilityCatalog()
-    root = Path(__file__).parents[1] / "prisma_sdwan_mcp_v2" / "tools"
+    root = Path(__file__).parents[1] / "prisma_sdwan_mcp" / "tools"
     missing = []
     for path in root.glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))
@@ -23,7 +23,7 @@ def test_all_registry_style_string_literals_reference_known_actions():
     import re
     catalog = CapabilityCatalog()
     domains = {d["domain"] for d in catalog.domains()}
-    root = Path(__file__).parents[1] / "prisma_sdwan_mcp_v2" / "tools"
+    root = Path(__file__).parents[1] / "prisma_sdwan_mcp" / "tools"
     missing = []
     for path in root.glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))

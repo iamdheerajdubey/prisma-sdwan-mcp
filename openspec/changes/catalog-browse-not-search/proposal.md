@@ -36,9 +36,9 @@ The catalog does not need to be searched. It is 316 fixed entries across 19 doma
 ## Impact
 
 **Code**
-- `prisma_sdwan_mcp_v2/tools/discovery.py` — `search_capabilities` replaced by `list_capabilities`; summary/full projection removed.
-- `prisma_sdwan_mcp_v2/catalog.py` — `search()` replaced by exact-filter listing; haystack join and substring test deleted.
-- `prisma_sdwan_mcp_v2/resources.py` — `prisma-v2://domains` becomes redundant with `list_capabilities()`; evaluate removal.
+- `prisma_sdwan_mcp/tools/discovery.py` — `search_capabilities` replaced by `list_capabilities`; summary/full projection removed.
+- `prisma_sdwan_mcp/catalog.py` — `search()` replaced by exact-filter listing; haystack join and substring test deleted.
+- `prisma_sdwan_mcp/resources.py` — `prisma-v2://domains` becomes redundant with `list_capabilities()`; evaluate removal.
 
 **Tool surface**
 - Tool count stays 26. One tool renamed, none added or removed.

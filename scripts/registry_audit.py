@@ -3,8 +3,8 @@ from __future__ import annotations
 
 import json
 
-from prisma_sdwan_mcp_v2.catalog import CapabilityCatalog
-from prisma_sdwan_mcp_v2.safety import ResponseSafety
+from prisma_sdwan_mcp.catalog import CapabilityCatalog
+from prisma_sdwan_mcp.safety import ResponseSafety
 
 
 def walk_fields(value, prefix=""):

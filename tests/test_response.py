@@ -1,6 +1,6 @@
 import json
 
-from prisma_sdwan_mcp_v2.response import collection_json, single_json
+from prisma_sdwan_mcp.response import collection_json, single_json
 
 
 def test_oversize_single_object_is_outlined_not_stubbed(monkeypatch):

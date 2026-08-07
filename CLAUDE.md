@@ -22,12 +22,12 @@ PYTHONPATH=. pytest -q tests/test_resolver.py            # single file
 PYTHONPATH=. pytest -q tests/test_resolver.py::test_name # single test
 
 # Run
-prisma-sdwan-mcp-v2 --transport stdio
-prisma-sdwan-mcp-v2 --transport streamable-http --host 0.0.0.0 --port 8000
+prisma-sdwan-mcp --transport stdio
+prisma-sdwan-mcp --transport streamable-http --host 0.0.0.0 --port 8000
 
 # Docker
-docker build -t prisma-sdwan-mcp-v2 .
-docker run --rm --env-file .env prisma-sdwan-mcp-v2
+docker build -t prisma-sdwan-mcp .
+docker run --rm --env-file .env prisma-sdwan-mcp
 ```
 
 Two pytest markers exist (`live`, `sdk`) for tests requiring a real tenant / the `prisma_sase` package — see `docs/LIVE_VALIDATION.md` before running anything against a live controller.
@@ -37,7 +37,7 @@ Two pytest markers exist (`live`, `sdk`) for tests requiring a real tenant / the
 **Design rule: the registry owns API facts, semantic tools own operator meaning.** A tool must never hard-code SDK endpoint details the registry already knows.
 
 ```
-AI  --intent-->  Semantic tool (prisma_sdwan_mcp_v2/tools/*.py)
+AI  --intent-->  Semantic tool (prisma_sdwan_mcp/tools/*.py)
                      |
                      +--> Resolver (resolver.py): name -> ID
                      |      site name -> site_id, element name -> element_id (+ site_id), policy name -> policy_id
@@ -65,7 +65,7 @@ AI  --intent-->  Semantic tool (prisma_sdwan_mcp_v2/tools/*.py)
 
 Catalog discovery is **enumeration, not search**: `list_capabilities()` lists domains, `list_capabilities(domain=...)` returns every action in that domain in full every time. There is no free-text matching against descriptions.
 
-### The 26-tool surface (`prisma_sdwan_mcp_v2/tools/`)
+### The 26-tool surface (`prisma_sdwan_mcp/tools/`)
 
 Split across `discovery.py`, `core.py`, `routing_diagnostics.py`, `policies_security.py`, `domains.py`, `monitoring.py`, `config_gen.py`. Registered in `server.py`. Grouped by intent, not by SDK domain:
 - Discovery/resolution (6): `find_site`, `find_element`, `find_resource`, `list_capabilities`, `read_capability`, `resolve_path`

@@ -79,7 +79,7 @@ Eight useful SDK calls are not represented in the generated 308-action registry:
 - VPN-link status
 - VPN-link state
 
-They are stored in `prisma_sdwan_mcp_v2/data/curated_capabilities.json` rather than hidden in tool code. The semantic tools use them directly, but the generic `read_capability` blocks them by default until live validation is completed.
+They are stored in `prisma_sdwan_mcp/data/curated_capabilities.json` rather than hidden in tool code. The semantic tools use them directly, but the generic `read_capability` blocks them by default until live validation is completed.
 
 See `docs/LIVE_VALIDATION.md`.
 
@@ -106,20 +106,20 @@ PAN_TSG_ID
 stdio:
 
 ```bash
-prisma-sdwan-mcp-v2 --transport stdio
+prisma-sdwan-mcp --transport stdio
 ```
 
 streamable HTTP:
 
 ```bash
-prisma-sdwan-mcp-v2 --transport streamable-http --host 0.0.0.0 --port 8000
+prisma-sdwan-mcp --transport streamable-http --host 0.0.0.0 --port 8000
 ```
 
 Docker:
 
 ```bash
-docker build -t prisma-sdwan-mcp-v2 .
-docker run --rm --env-file .env prisma-sdwan-mcp-v2
+docker build -t prisma-sdwan-mcp .
+docker run --rm --env-file .env prisma-sdwan-mcp
 ```
 
 ## Tests included

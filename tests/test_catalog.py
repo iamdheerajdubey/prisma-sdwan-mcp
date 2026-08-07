@@ -1,4 +1,4 @@
-from prisma_sdwan_mcp_v2.catalog import CapabilityCatalog
+from prisma_sdwan_mcp.catalog import CapabilityCatalog
 
 
 def test_catalog_counts_and_domains():

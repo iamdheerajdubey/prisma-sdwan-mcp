@@ -2,10 +2,10 @@ from types import SimpleNamespace
 
 import pytest
 
-from prisma_sdwan_mcp_v2.catalog import CapabilityCatalog
-from prisma_sdwan_mcp_v2.client import PrismaSDWANClient
-from prisma_sdwan_mcp_v2.executor import CapabilityExecutionError, CapabilityExecutor
-from prisma_sdwan_mcp_v2.safety import ResponseSafety
+from prisma_sdwan_mcp.catalog import CapabilityCatalog
+from prisma_sdwan_mcp.client import PrismaSDWANClient
+from prisma_sdwan_mcp.executor import CapabilityExecutionError, CapabilityExecutor
+from prisma_sdwan_mcp.safety import ResponseSafety
 
 
 class GetAPI:

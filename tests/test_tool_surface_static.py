@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 def test_ai_tool_surface_is_intentionally_26():
-    root = Path(__file__).parents[1] / "prisma_sdwan_mcp_v2" / "tools"
+    root = Path(__file__).parents[1] / "prisma_sdwan_mcp" / "tools"
     names = []
     for path in root.glob("*.py"):
         tree = ast.parse(path.read_text(encoding="utf-8"))

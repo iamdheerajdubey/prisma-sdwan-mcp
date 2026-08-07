@@ -2,9 +2,9 @@ import json
 
 import pytest
 
-from prisma_sdwan_mcp_v2 import runtime
-from prisma_sdwan_mcp_v2.catalog import CapabilityCatalog, RegistryError
-from prisma_sdwan_mcp_v2.tools.discovery import list_capabilities
+from prisma_sdwan_mcp import runtime
+from prisma_sdwan_mcp.catalog import CapabilityCatalog, RegistryError
+from prisma_sdwan_mcp.tools.discovery import list_capabilities
 
 
 def _call(**kwargs) -> dict:

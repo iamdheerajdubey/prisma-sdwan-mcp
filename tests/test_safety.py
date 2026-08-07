@@ -1,4 +1,4 @@
-from prisma_sdwan_mcp_v2.safety import ResponseSafety
+from prisma_sdwan_mcp.safety import ResponseSafety
 
 
 def test_recursive_secret_redaction():

@@ -27,7 +27,7 @@ class API:
     def __init__(self, **kwargs):
         self.get=Get(); self.post=types.SimpleNamespace(); self.interactive=types.SimpleNamespace(login_secret=lambda **kw: {"expires_in":900})
 pr=types.ModuleType("prisma_sase"); pr.API=API; sys.modules["prisma_sase"]=pr
-import prisma_sdwan_mcp_v2.server as s
+import prisma_sdwan_mcp.server as s
 assert len(s.mcp.tools)==26
 assert len(s.mcp.resources)==4
 assert len(s.mcp.prompts)==4

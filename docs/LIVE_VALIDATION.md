@@ -51,7 +51,7 @@ Do not set `MCP_ALLOW_UNVERIFIED_COMPAT=true` yet.
 ## Step 3 - Start MCP v2
 
 ```bash
-prisma-sdwan-mcp-v2 --transport stdio
+prisma-sdwan-mcp --transport stdio
 ```
 
 Confirm startup reports:
