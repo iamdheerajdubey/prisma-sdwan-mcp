@@ -63,6 +63,41 @@ def get_routing(
     composite behavior: reachable/filtered prefix counts are added per peer
     and Established peers receiving zero reachable prefixes are flagged.
     OSPF neighbor/prefix operations enumerate OSPF configs and fan out safely.
+
+    Args:
+        operation: Which routing dataset to fetch. `bgp_peers`, `bgp_config`,
+            `ospf_config`, `static_routes`, `route_maps`, `prefix_lists`,
+            `community_lists`, and `aspath_lists` each return that object
+            list directly. `bgp_status` returns peer session states with an
+            `established` flag added. `bgp_prefixes` requires `peer` and
+            returns one peer's prefixes (see `prefix_kind`).
+            `ospf_neighbors`/`ospf_prefixes` fan out across every OSPF
+            config found on the element.
+        element: ION element name, serial number, hardware ID, or exact
+            controller ID. Required for every operation.
+        site: Site name or controller ID. Optional — inferred from
+            `element`'s inventory record when possible; only needed to
+            disambiguate an element name that exists at more than one site.
+        peer: BGP peer name, IP address, or exact ID. Required only for
+            `bgp_prefixes`; resolved the same way as `element` (exact ID,
+            then exact name/IP, then substring) — ambiguous or missing
+            matches return a structured error with candidates instead of
+            guessing. Ignored for every other operation.
+        prefix_kind: For `bgp_prefixes` only: `"reachable"` (prefixes
+            actually usable via this peer, the default), `"advertised"`
+            (what we send the peer), or `"discovered"` (what the peer
+            offered before filtering). Ignored for every other operation.
+        include_prefixes: For `bgp_status` only. When true, also fetches
+            per-peer reachable-prefix counts (one extra API call per peer,
+            bounded by the server fanout limit) and flags any Established
+            peer with zero reachable prefixes via
+            `established_zero_prefixes` — a fast way to spot a session
+            that's up but not passing routes. Leave false for a quick
+            status check. Ignored for every other operation.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_routing"
     try:
@@ -202,6 +237,24 @@ def get_device_diagnostics(
     Covers LLDP neighbors, MAC table, switch port/VLAN mappings, BFD peers, and
     application-probe configuration. Site is inferred from the element whenever
     the element inventory record provides site_id.
+
+    Args:
+        operation: Which diagnostic to fetch. `lldp_neighbors` and
+            `mac_table` need only `element`. `bfd_peers`, `port_to_vlan`,
+            `vlan_to_port`, and `application_probe` also need a resolvable
+            `site` (explicit, or inferred from the element's inventory
+            record) — if neither is available, these four return an error
+            rather than guessing.
+        element: ION element name, serial number, hardware ID, or exact
+            controller ID. Always required.
+        site: Site name or controller ID. Optional for `lldp_neighbors`/
+            `mac_table`; required (explicit or inferable from `element`)
+            for `bfd_peers`, `port_to_vlan`, `vlan_to_port`, and
+            `application_probe`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_device_diagnostics"
     try:

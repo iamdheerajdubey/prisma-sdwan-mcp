@@ -95,6 +95,4 @@ The selected surface keeps high-use intents easy to discover while the expert ca
 
 ## Mutation boundary
 
-The API executor is read-only. No controller mutation endpoint is present in the source registry used here.
-
-`generate_site_config` is the only non-read-only MCP tool. It writes a local validated YAML file only. It does not call a Prisma mutation API. This allows Ansible/change-control to remain the network mutation path.
+All 26 tools are read-only. The API executor is read-only — no controller mutation endpoint is present in the source registry used here. `generate_site_config` does not touch the filesystem or call a Prisma mutation API either; it validates one site's device list against the `prisma_sdwan.sites` schema and returns the structured config plus formatted YAML text to the caller. Turning that into a real file, combining it with other sites, and applying it to the network is entirely up to whatever consumes this server — this keeps Ansible/change-control as the network mutation path, and keeps this server from holding any state of its own between calls.

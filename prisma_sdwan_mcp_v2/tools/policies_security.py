@@ -79,6 +79,27 @@ def get_policies(
     require ``policy`` as an exact/partial name or ID; ambiguous policy names are
     never auto-selected. Security policy-set status is not present in the source
     registry and is therefore reported unsupported instead of invented.
+
+    Args:
+        family: Which policy family to inspect: `network`, `priority`, `nat`,
+            `security`, `performance`, or `all` to query every family at
+            once (each item tagged with `policy_family`). `all` only
+            supports `operation="sets"` or `"stacks"` — `rules`/`status`
+            need a single `policy` name, which is meaningless across
+            families at once.
+        operation: `sets` (default) or `stacks` list every policy set/stack
+            tenant-wide, no `policy` needed. `rules` lists the rules inside
+            one policy set — requires `policy`. `status` gets one policy
+            set's status — requires `policy`; not available for `family="security"`
+            (reported as `unsupported_operation`, not guessed).
+        policy: Exact/partial policy-set name or controller ID. Required for
+            `rules`/`status`, ignored for `sets`/`stacks`. Ambiguous
+            partial matches are never auto-picked — the error lists every
+            candidate so you can retry with an exact name or ID.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_policies"
     try:
@@ -149,6 +170,31 @@ def get_security(
     Application searches are performed client-side against the registry-backed
     application catalog. Site/element names are resolved automatically for
     scoped security-zone operations.
+
+    Args:
+        operation: `zones` (all security zones, no other args needed),
+            `site_zones` (requires `site`), `element_zones` (requires
+            `site` and `element`), `applications` (catalog search, optional
+            `application` substring filter), `application_version` (catalog
+            version info, no args), `global_prefixes`/`local_prefixes`
+            (no other args needed), `sdwan_apps` (list, no other args),
+            `sdwan_app_status`/`sdwan_app_configs` (requires `application`
+            as an exact SD-WAN app ID, not a name search).
+        site: Site name or controller ID. Required for `site_zones` and
+            `element_zones`; ignored otherwise.
+        element: ION/element name or controller ID. Required (with `site`)
+            for `element_zones`; ignored otherwise.
+        application: For `operation="applications"`, an optional
+            case-insensitive substring to filter the application catalog by
+            display name. For `sdwan_app_status`/`sdwan_app_configs`, this
+            must instead be the exact SD-WAN app controller ID (not a
+            search term) — those two operations do not resolve names.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call. Has no effect when the
+            result is empty — an operation with zero matches returns a
+            `result` key instead of a typed collection key.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_security"
     try:

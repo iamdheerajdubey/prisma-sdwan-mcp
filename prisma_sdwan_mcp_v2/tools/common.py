@@ -5,6 +5,7 @@ from collections import Counter
 from typing import Any
 
 from .. import runtime
+from ..catalog import RegistryError
 from ..executor import CapabilityExecutionError
 from ..resolver import ResolutionError
 from ..response import collection_json, compact_json, error_json, single_json
@@ -37,6 +38,8 @@ def handle_error(tool: str, exc: Exception) -> str:
         return error_json(code, str(exc), tool, 409 if exc.candidates else 404, {"candidates": exc.candidates or None})
     if isinstance(exc, CapabilityExecutionError):
         return error_json("invalid_capability_request", str(exc), tool, 400)
+    if isinstance(exc, RegistryError):
+        return error_json("invalid_argument", str(exc), tool, 400)
     return error_json("internal_error", "unexpected server error", tool, 500, {"exception": type(exc).__name__})
 
 

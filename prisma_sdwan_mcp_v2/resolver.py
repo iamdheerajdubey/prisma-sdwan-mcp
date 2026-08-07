@@ -88,6 +88,15 @@ class ResourceResolver:
                 scoped = [item for item in matches if item.get("site_id") in (None, site_id)]
                 # Prefer site-scoped candidates when the inventory includes site_id.
                 with_site = [item for item in scoped if item.get("site_id") == site_id]
+                if not scoped and matches:
+                    # Every name/ID match belongs to some other site — a more specific
+                    # error than "no element matches" (which would suggest a typo).
+                    other_sites = sorted({str(item["site_id"]) for item in matches if item.get("site_id")})
+                    requested_site = (site_record or {}).get("name") or site_id
+                    raise ResolutionError(
+                        f"Element '{element}' belongs to site_id "
+                        f"{'/'.join(other_sites) if other_sites else 'unknown'}, not requested site '{requested_site}'"
+                    )
                 matches = with_site or scoped
             if not matches:
                 scope = f" at site_id '{site_id}'" if site_id else ""
@@ -100,10 +109,6 @@ class ResourceResolver:
             element_record = matches[0]
         element_id = element_record.get("id") if element_record else None
         element_site = element_record.get("site_id") if element_record else None
-        if site_id and element_site and site_id != element_site:
-            raise ResolutionError(
-                f"Element '{element}' belongs to site_id '{element_site}', not requested site_id '{site_id}'"
-            )
         if site_id is None and element_site:
             site_id = element_site
         return site_id, element_id, element_record

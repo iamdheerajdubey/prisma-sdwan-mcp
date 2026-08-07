@@ -72,9 +72,3 @@ def allow_unverified_compat() -> bool:
 
 def data_dir() -> Path:
     return Path(__file__).resolve().parent / "data"
-
-
-def get_output_dir() -> Path:
-    path = Path(os.getenv("PRISMA_MCP_OUTPUT_DIR", "./generated")).expanduser().resolve()
-    path.mkdir(parents=True, exist_ok=True)
-    return path

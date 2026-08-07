@@ -114,6 +114,28 @@ def get_network_services(
     Site/element names are resolved to controller IDs. ``ntp_status`` accepts
     ``object_id`` as an NTP configuration ID; if omitted and exactly one NTP
     configuration exists on the element, that ID is used automatically.
+
+    Args:
+        operation: Which read to run. No params required: ``dns_profiles``,
+            ``dns_roles``, ``syslog_profiles``, ``tacacs_profiles``.
+            Requires ``site`` + ``element``: ``dns_services``,
+            ``syslog_servers``, ``snmp_agents``, ``snmp_traps``,
+            ``tacacs_servers``. Requires ``site`` only: ``dhcp_servers``.
+            Requires ``element`` only: ``ntp``, ``radius``, ``ntp_status``
+            (``ntp_status`` also takes optional ``object_id``).
+        site: Site name or controller ID. Required by some operations (see
+            `operation`); resolved the same way as `find_site` — ambiguous
+            or unknown names return an error instead of guessing.
+        element: Element name or controller ID. Required by some operations
+            (see `operation`); resolved the same way as `find_element`.
+        object_id: Only used by ``ntp_status``, as an NTP configuration ID.
+            Omit it if the element has exactly one NTP configuration — it
+            is picked automatically. If it has more than one, this call
+            fails with the candidate IDs listed; pass one of them here.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_network_services"
     try:
@@ -171,7 +193,25 @@ def get_multicast(
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
-    """Inspect multicast configuration, RPs, peer groups, routes, IGMP, and WAN status."""
+    """Inspect multicast configuration, RPs, peer groups, routes, IGMP, and WAN status.
+
+    Args:
+        operation: Which read to run. No params required: ``peer_groups``.
+            Requires ``site`` only: ``source_rps``, ``source_site_config``.
+            ``routes`` and ``igmp_memberships`` accept optional ``site``
+            and/or ``element`` as filters (unfiltered if both omitted).
+            Requires ``site`` + ``element``: ``config``, ``dynamic_rps``,
+            ``rps``, ``protocol_parameters``, ``wan_status``.
+        site: Site name or controller ID. Required or optional depending on
+            `operation` (see above); resolved the same way as `find_site`.
+        element: Element name or controller ID. Required or optional
+            depending on `operation` (see above); resolved the same way as
+            `find_element`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
+    """
     tool = "get_multicast"
     try:
         site_id, element_id, _ = site_element(site, element) if (site or element) else (None, None, None)
@@ -212,7 +252,23 @@ def get_ipfix(
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
-    """Inspect IPFIX/flow-export configuration, collectors, filters, templates, and prefixes."""
+    """Inspect IPFIX/flow-export configuration, collectors, filters, templates, and prefixes.
+
+    Args:
+        operation: Which read to run. Requires ``site`` + ``element``:
+            ``config``. No params required: ``collectors``, ``filters``,
+            ``profiles``, ``templates``, ``global_prefixes``.
+            ``local_prefixes`` takes optional ``site`` — site-scoped
+            prefixes if given, tenant-wide prefixes if omitted.
+        site: Site name or controller ID. Required or optional depending on
+            `operation` (see above); resolved the same way as `find_site`.
+        element: Element name or controller ID. Required only for
+            ``config``; resolved the same way as `find_element`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
+    """
     tool = "get_ipfix"
     try:
         site_id, element_id, _ = site_element(site, element) if (site or element) else (None, None, None)
@@ -247,7 +303,24 @@ def get_cellular(
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
-    """Inspect cellular modules, firmware status, APN profiles, and module images."""
+    """Inspect cellular modules, firmware status, APN profiles, and module images.
+
+    Args:
+        operation: Which read to run. No params required: ``module_images``,
+            ``apn_profiles``, ``firmware_status``. Requires ``machine``:
+            ``machine_modules``. Requires ``element``: ``modules`` (the
+            default cellular-module read).
+        element: Element name, serial number, hardware ID, or controller
+            ID. Required only for ``modules``; resolved the same way as
+            `find_element`.
+        machine: Machine name, hardware ID, serial number, or controller
+            ID. Required only for ``machine_modules``; resolved the same
+            way as `find_resource(kind="machine")`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
+    """
     tool = "get_cellular"
     try:
         if operation == "module_images":
@@ -278,7 +351,21 @@ def get_software(
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
-    """Inspect element software state/status and tenant-wide upgrade/template status."""
+    """Inspect element software state/status and tenant-wide upgrade/template status.
+
+    Args:
+        operation: Which read to run. Requires ``element``:
+            ``element_state``, ``element_status``. No params required
+            (tenant-wide): ``machine_upgrade``, ``upgrade_status``,
+            ``site_templates``, ``template_deployments``.
+        element: Element name or controller ID. Required only for
+            ``element_state``/``element_status``; resolved the same way as
+            `find_element`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
+    """
     tool = "get_software"
     try:
         if operation in {"element_state", "element_status"}:
@@ -307,7 +394,21 @@ def get_identity(
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
-    """Inspect directory/tenant identity state. Session/token fields are always redacted centrally."""
+    """Inspect directory/tenant identity state. Session/token fields are always redacted centrally.
+
+    Args:
+        operation: Which read to run. No params required:
+            ``directory_service``, ``directory_status``, ``directory_users``,
+            ``directory_groups``, ``active_user_ips``, ``tenant_users``,
+            ``element_users``. Requires ``object_id``: ``element_user_access``.
+        object_id: Element-user ID (from an ``element_users`` result's `id`
+            field). Required only for ``element_user_access``; ignored
+            otherwise.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
+    """
     tool = "get_identity"
     try:
         if operation == "directory_service":
@@ -343,7 +444,23 @@ def get_service_connections(
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
-    """Inspect service connections, endpoints, binding maps, service labels, and extensions."""
+    """Inspect service connections, endpoints, binding maps, service labels, and extensions.
+
+    Args:
+        operation: Which read to run. No params required:
+            ``tenant_connections``, ``endpoints``, ``binding_maps``,
+            ``service_labels``, ``tenant_extensions``. Requires ``site``:
+            ``site_connections``, ``site_extensions``. Requires ``site`` +
+            ``element``: ``element_extensions``.
+        site: Site name or controller ID. Required by some operations (see
+            `operation`); resolved the same way as `find_site`.
+        element: Element name or controller ID. Required only for
+            ``element_extensions``; resolved the same way as `find_element`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
+    """
     tool = "get_service_connections"
     try:
         site_id, element_id, _ = site_element(site, element) if (site or element) else (None, None, None)
@@ -385,7 +502,27 @@ def get_prisma_access(
     cursor: Optional[str] = None,
     limit: Optional[int] = None,
 ) -> str:
-    """Inspect Prisma Access/SASE integration, connections, prefixes, and ADEM state."""
+    """Inspect Prisma Access/SASE integration, connections, prefixes, and ADEM state.
+
+    Args:
+        operation: Which read to run. Requires ``site``: ``site_config``,
+            ``connections``, ``adem_site_config``, ``adem_status``.
+            Requires ``site`` + ``object_id``: ``connection_status`` (a
+            SASE connection ID from a ``connections`` result's `id` field).
+            No params required: ``connection_config``, ``pa_networks``,
+            ``integration_status``. Requires ``site`` + ``element``:
+            ``advertised_prefixes``, ``reachable_prefixes``.
+        site: Site name or controller ID. Required by most operations (see
+            `operation`); resolved the same way as `find_site`.
+        element: Element name or controller ID. Required only for the
+            prefix operations; resolved the same way as `find_element`.
+        object_id: SASE connection ID. Required only for
+            ``connection_status``; ignored otherwise.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
+    """
     tool = "get_prisma_access"
     try:
         site_id, element_id, _ = site_element(site, element) if (site or element) else (None, None, None)
@@ -433,6 +570,22 @@ def get_platform(
 
     Sensitive values in external CA or other returned objects are recursively
     redacted before leaving the server.
+
+    Args:
+        operation: Which read to run. No params required: ``tenant``,
+            ``licenses``, ``skus``, ``machines``, ``external_ca``,
+            ``otp_access``, ``hub_service_endpoints``. Requires ``machine``:
+            ``machine_system_status``, ``machine_software``. ``reports``
+            takes optional ``folder`` as a filter.
+        machine: Machine name, hardware ID, serial number, or controller
+            ID. Required only for the two machine-scoped operations;
+            resolved the same way as `find_resource(kind="machine")`.
+        folder: Optional folder path to filter ``reports`` by. Ignored by
+            every other operation.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_platform"
     try:

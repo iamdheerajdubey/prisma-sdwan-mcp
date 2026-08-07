@@ -241,6 +241,55 @@ def get_monitoring(
     ``end_time`` for incident analysis. Flow digest mode summarizes application,
     path, action, and top talkers; ``raw=true`` returns records. Link/probe
     metrics are recorded telemetry, not an active ping test.
+
+    Args:
+        operation: Which monitoring dataset. `events`/`alarms` query the
+            incident log (see `start_time`/`end_time` below — they behave
+            differently here than for the other operations). `flows`
+            returns a summarized digest by default (`raw=true` for
+            individual flow rows) and requires `site`. `link_metrics`/
+            `probe_metrics` return recorded telemetry (not a live probe)
+            and require `site`. `aiops_health`, `aiops_anomaly`,
+            `aiops_forecast`, `aiops_aggregates`, `system_metrics`,
+            `qos_metrics`, and `bandwidth_stats` are tenant-wide AIOps
+            datasets that ignore `site`, `element`, `hours`, `start_time`,
+            and `end_time` entirely.
+        site: Site name or controller ID. Required for `flows`,
+            `link_metrics`, and `probe_metrics`; an optional filter for
+            `events`/`alarms`; ignored by every `aiops_*`/`system_metrics`/
+            `qos_metrics`/`bandwidth_stats` operation.
+        element: ION element name or ID. Optional filter with the same
+            scope as `site`; ignored wherever `site` is ignored.
+        hours: Lookback window in hours (max 168) ending now. Used only
+            when `start_time`/`end_time` are both omitted, and only for
+            `flows`, `link_metrics`, `probe_metrics`. Has no effect on
+            `events`/`alarms` or any `aiops_*` operation.
+        start_time: ISO 8601 timestamp. For `flows`/`link_metrics`/
+            `probe_metrics` this must be paired with `end_time` (supply
+            both or neither) and replaces `hours`. For `events`/`alarms`
+            it is an independent, optional lower bound — you may pass it
+            alone to mean "since this time". Leaving both `start_time` and
+            `end_time` unset on `events`/`alarms` returns only the most
+            recent records and can silently miss an older incident.
+        end_time: ISO 8601 timestamp — see `start_time` for the pairing
+            rules, which differ by operation.
+        severity: Comma-separated severity filter for `events`/`alarms`
+            (e.g. `"critical,major"`). Ignored for every other operation.
+        raw: When true, skip summarization and return raw records instead:
+            individual flow rows for `flows` (capped at 500), or
+            per-datapoint metric series for `link_metrics`/`probe_metrics`
+            instead of the path/probe-pivoted view. Ignored for every
+            other operation.
+        limit: Max items to return in this page for list-shaped results
+            (`events`, `alarms`, raw `flows`, `probe_metrics`). Capped at
+            100 for `events`/`alarms`. Ignored for single-object results
+            (flow digest, `link_metrics`).
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Only meaningful where `limit` is.
+        app: Application ID/name filter — `flows` only. Ignored elsewhere.
+        path_id: Path ID filter — `flows` only. Ignored elsewhere.
+        waninterface_id: WAN interface ID filter — `flows` only. Ignored
+            elsewhere.
     """
     tool = "get_monitoring"
     try:

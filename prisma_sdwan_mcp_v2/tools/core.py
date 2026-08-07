@@ -56,6 +56,26 @@ def get_inventory(
     definitions. Summary mode projects the fields most useful for reasoning;
     full mode preserves the redacted controller record and should be used with
     a search/limit for large collections.
+
+    Args:
+        kind: Inventory collection to retrieve: `sites`, `elements`
+            (IONs), `machines` (hardware), or `applications`. Use
+            `find_site`/`find_element`/`find_resource` instead if you already
+            know a name and just need to resolve it to an ID.
+        search: Case-insensitive substring filter across name, display_name,
+            description, id, serial_number, and hw_id. Omit to return the
+            whole collection (subject to `limit`).
+        detail: `summary` (default) projects only the most relevant fields
+            for reasoning. `full` returns the complete redacted controller
+            record per item — use with `search` or a tight `limit` for large
+            collections (e.g. `applications` can be thousands of rows).
+            Note: `kind="applications"` with no `search` and `detail="summary"`
+            ignores pagination and instead returns one aggregate summary
+            (`total_applications` + counts per category), not a row list.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_inventory"
     mapping = {
@@ -98,6 +118,24 @@ def get_device_health(
     ``element`` and ``site`` accept names or IDs. The tool resolves IDs safely,
     fetches element operational state, optionally software state/status, and can
     fan out to interface status. Interface fan-out is intentionally bounded.
+
+    Args:
+        element: Element name, serial number, hardware ID, or exact
+            controller ID. If it resolves to exactly one record, `site` can
+            be omitted — the element's own site is used. Ambiguous names
+            (e.g. a short substring matching many elements) fail instead of
+            guessing; pass an exact name/ID or add `site` to narrow it.
+        site: Site name or controller ID that should own `element`. Optional
+            when `element` already resolves uniquely on its own.
+        include_software: When true (default), also fetch software
+            state/status for the element. A failure here is reported inline
+            under `partial_errors` rather than failing the whole call.
+        include_interfaces: When true, also fan out to per-interface status
+            (bounded by `interface_limit`). Off by default because it adds
+            one API call per interface.
+        interface_limit: Max interfaces to fetch status for when
+            `include_interfaces` is true. Ignored otherwise. Must be between
+            1 and the server's configured fan-out ceiling.
     """
     tool = "get_device_health"
     try:
@@ -168,6 +206,24 @@ def get_interfaces(
     If ``interface`` is omitted and status is requested, the tool enumerates the
     element interfaces then fans out to each status endpoint up to the configured
     fan-out ceiling. Individual interface failures remain inline.
+
+    Args:
+        element: Element name, serial number, hardware ID, or exact
+            controller ID. If it resolves to exactly one record, `site` can
+            be omitted — the element's own site is used.
+        site: Site name or controller ID that should own `element`. Optional
+            when `element` already resolves uniquely on its own.
+        mode: `config` returns only interface configuration (no extra API
+            calls). `status` returns only live operational state per
+            interface. `both` (default) returns config plus status.
+        interface: Optional filter to one interface by exact ID, exact name
+            (case-insensitive), or name substring. Omit to return every
+            interface on the element. An ambiguous substring returns every
+            candidate rather than guessing.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max interfaces to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_interfaces"
     try:
@@ -229,6 +285,29 @@ def get_topology(
     the underlay: it takes VPN leg IDs from AnyNet and resolves each through live
     vpnlink status, exposing element/interface-level underlay information. A
     link's ``path_id`` and controller ``anynet_link_id`` are kept distinct.
+
+    Args:
+        detail: `summary` (default) returns link/node counts plus only the
+            links that are not up. `full` returns every matching link and
+            requires `site` or `status` to be set — a tenant-wide full dump
+            is refused rather than flooding the response.
+        site: Site name or controller ID to scope the topology to. Required
+            for `detail="full"` (unless `status` is set) and for
+            `view="basenet"`.
+        status: Filter links to one status value (e.g. `"up"`), case
+            insensitive. Can substitute for `site` when `detail="full"`.
+        view: `anynet` (default) returns AnyNet-level links. `basenet`
+            derives the underlay by resolving each AnyNet link's VPN legs
+            through live status lookups (one API call per leg, bounded by
+            the server's fan-out ceiling and paginated via `leg_offset`) —
+            requires `site`.
+        leg_offset: For `view="basenet"` only: index into the full VPN-leg
+            list to resume from — use the previous response's
+            `next_leg_offset`. Must be >= 0. Ignored for `view="anynet"`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max links to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_topology"
     try:
@@ -344,6 +423,33 @@ def get_wan(
     Operations needing a site or element accept names or IDs. For VPN leg
     status/state, ``object_id`` is the vpnlink leg ID from topology, not the
     parent AnyNet path ID.
+
+    Args:
+        operation: Which WAN-related collection to inspect:
+            `networks` (tenant-wide WAN network definitions, no site needed),
+            `vrfs` (tenant-wide VRF contexts, no site needed),
+            `ipsec_profiles` (tenant-wide, no site needed),
+            `interfaces` (WAN interfaces — requires `site`),
+            `paths` (WAN paths — requires `site`),
+            `vpn_links` (VPN link query, tenant-wide but narrowed by `site`
+            when given),
+            `lan_networks` (requires `site`),
+            `vpn_leg_status` / `vpn_leg_state` (live status/state for one VPN
+            leg — requires `object_id`, not `site`).
+        site: Site name or controller ID. Required (directly or via
+            `element`) for `interfaces`, `paths`, and `lan_networks`;
+            optional narrowing filter for `vpn_links`; unused otherwise.
+        element: Element name or controller ID, as an alternative to `site`
+            for the same operations — the element's own site is used if it
+            resolves uniquely. Unused for `networks`, `vrfs`,
+            `ipsec_profiles`, and the `vpn_leg_*` operations.
+        object_id: Required for `vpn_leg_status`/`vpn_leg_state` — the VPN
+            leg ID from a topology tool's `basenet` view, not the parent
+            AnyNet `path_id`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max items to return in this page. Omit to use the server
+            default page size.
     """
     tool = "get_wan"
     try:

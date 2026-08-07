@@ -32,6 +32,17 @@ def find_site(name: str, cursor: Optional[str] = None, limit: Optional[int] = No
 
     Returns every matching candidate. If more than one site matches, the result
     is explicitly marked ambiguous so the caller can choose an exact site.
+
+    Args:
+        name: Site name or controller ID. Exact ID match wins first, then
+            exact name match (case-insensitive), then falls back to a
+            substring match. Multiple hits are never auto-picked — check
+            `ambiguous` in the result and call again with a more specific
+            name or the exact `id` from `sites`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max matches to return in this page. Omit to use the server
+            default page size.
     """
     tool = "find_site"
     try:
@@ -56,6 +67,17 @@ def find_element(name: str, cursor: Optional[str] = None, limit: Optional[int] =
 
     The returned candidates include site_id when the controller provides it,
     allowing later tools to infer the correct site from an element.
+
+    Args:
+        name: Element name, serial number, hardware ID, or exact controller
+            ID. Exact ID match wins first, then exact name/serial/hw_id
+            match (case-insensitive), then substring. Multiple hits are
+            never auto-picked — check `ambiguous` and re-call with a more
+            specific value or the exact `id`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max matches to return in this page. Omit to use the server
+            default page size.
     """
     tool = "find_element"
     try:
@@ -86,6 +108,23 @@ def find_resource(
     Use for machines, applications, security zones, WAN networks, path groups,
     service labels, VRFs, and the major policy-set families. It never silently
     selects one object when multiple records match.
+
+    Args:
+        kind: Which object type to search. One of: `machine`, `application`,
+            `security_zone`, `wan_network`, `path_group`, `service_label`,
+            `vrf`, `network_policy`, `priority_policy`, `nat_policy`,
+            `security_policy`, `performance_policy`, or `policy` to search
+            all five policy-set families at once (each match is tagged with
+            its `policy_family`). Use `find_site`/`find_element` instead for
+            sites or ION elements — this tool does not cover those.
+        name: Object name or exact controller ID. Exact ID match wins first,
+            then exact name match (case-insensitive), then substring.
+            Multiple hits are never auto-picked — check `ambiguous` and
+            re-call with a more specific value or the exact `id`.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Omit on the first call.
+        limit: Max matches to return in this page. Omit to use the server
+            default page size.
     """
     tool = "find_resource"
     try:
@@ -141,6 +180,13 @@ def list_capabilities(
     entry carries the full execution contract (``action_id``, ``http_method``,
     ``path_parameters``, ``body_schema``) that ``read_capability`` needs, with
     no truncation.
+
+    Args:
+        domain: A domain identifier returned by a prior no-argument call
+            (e.g. ``"sites_devices"``, ``"security_policies"``). Omit to
+            list every domain instead of one domain's actions.
+        method: Filter one domain's actions to only ``"GET"`` or only
+            ``"POST"``. Ignored (and has no effect) when `domain` is omitted.
     """
     tool = "list_capabilities"
     try:
@@ -209,6 +255,21 @@ def read_capability(
     Curated actions that still need live verification are blocked here by
     default; set MCP_ALLOW_UNVERIFIED_COMPAT=true only after completing the
     validation checklist shipped with this project.
+
+    Args:
+        action_id: Exact action identifier from `list_capabilities`, e.g.
+            ``"sites_devices.sites"``. Not a free-text search term.
+        path_parameters: One key per required/optional path parameter that
+            action's `list_capabilities` entry lists under
+            ``path_parameters`` (e.g. ``{"site_id": "..."}``). Omit or use
+            ``{}`` for actions with none. Unknown keys are rejected.
+        body: JSON object matching that action's ``body_schema``. Only
+            meaningful for ``POST`` actions — passing any non-empty body to
+            a ``GET`` action is rejected.
+        cursor: Opaque pagination token copied from a previous response's
+            `next_cursor`. Only applies when the result is a list.
+        limit: Max items to return in this page when the result is a list.
+            Omit to use the server default page size.
     """
     tool = "read_capability"
     if not expert_tool_enabled():
@@ -269,7 +330,14 @@ def resolve_path(site: str, path_id: str) -> str:
     """Resolve an opaque path ID to a WAN interface, AnyNet link, or VPN leg.
 
     By design, unresolved IDs are reported explicitly rather than guessed.
-    ``site`` may be a site name or controller ID.
+
+    Args:
+        site: Site name or controller ID that owns this path. Must resolve
+            to exactly one site — an ambiguous or unknown name returns an
+            error listing the candidates instead of guessing.
+        path_id: The opaque path/interface/link ID to resolve, typically
+            copied from a `path_id`, `interface_id`, or `id` field in the
+            output of a routing/WAN tool such as `get_wan` or `get_routing`.
     """
     tool = "resolve_path"
     try:
