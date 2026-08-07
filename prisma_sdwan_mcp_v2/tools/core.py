@@ -75,7 +75,7 @@ def get_inventory(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_inventory"
     mapping = {
@@ -135,7 +135,7 @@ def get_device_health(
             one API call per interface.
         interface_limit: Max interfaces to fetch status for when
             `include_interfaces` is true. Ignored otherwise. Must be between
-            1 and the server's configured fan-out ceiling.
+            1 and the server's fan-out ceiling (default 100).
     """
     tool = "get_device_health"
     try:
@@ -204,8 +204,8 @@ def get_interfaces(
     """Retrieve interface configuration and/or operational state for one element.
 
     If ``interface`` is omitted and status is requested, the tool enumerates the
-    element interfaces then fans out to each status endpoint up to the configured
-    fan-out ceiling. Individual interface failures remain inline.
+    element interfaces then fans out to each status endpoint up to the fan-out ceiling (default 100)
+    . Individual interface failures remain inline.
 
     Args:
         element: Element name, serial number, hardware ID, or exact
@@ -223,7 +223,7 @@ def get_interfaces(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max interfaces to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_interfaces"
     try:
@@ -303,16 +303,16 @@ def get_topology(
             insensitive. Can substitute for `site` when `detail="full"`.
         view: `anynet` (default) returns AnyNet-level links. `basenet`
             derives the underlay by resolving each AnyNet link's VPN legs
-            through live status lookups (one API call per leg, bounded by
-            the server's fan-out ceiling and paginated via `leg_offset`) —
-            requires `site`.
+            through live status lookups — one API call per leg, capped at 100
+            legs per call (the server fan-out ceiling) and resumed via
+            `leg_offset`. Requires `site`.
         leg_offset: For `view="basenet"` only: index into the full VPN-leg
             list to resume from — use the previous response's
             `next_leg_offset`. Must be >= 0. Ignored for `view="anynet"`.
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max links to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_topology"
     try:
@@ -457,7 +457,7 @@ def get_wan(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_wan"
     try:

@@ -89,7 +89,7 @@ def get_routing(
             offered before filtering). Ignored for every other operation.
         include_prefixes: For `bgp_status` only. When true, also fetches
             per-peer reachable-prefix counts (one extra API call per peer,
-            bounded by the server fanout limit) and flags any Established
+            bounded by the server fan-out limit (default 100)) and flags any Established
             peer with zero reachable prefixes via
             `established_zero_prefixes` — a fast way to spot a session
             that's up but not passing routes. Leave false for a quick
@@ -97,7 +97,7 @@ def get_routing(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_routing"
     try:
@@ -258,7 +258,7 @@ def get_device_diagnostics(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_device_diagnostics"
     try:

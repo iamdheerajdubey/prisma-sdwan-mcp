@@ -136,7 +136,7 @@ def get_network_services(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_network_services"
     try:
@@ -213,7 +213,7 @@ def get_multicast(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_multicast"
     try:
@@ -272,7 +272,7 @@ def get_ipfix(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_ipfix"
     try:
@@ -325,7 +325,7 @@ def get_cellular(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_cellular"
     try:
@@ -371,7 +371,7 @@ def get_software(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_software"
     try:
@@ -419,7 +419,7 @@ def get_identity(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_identity"
     try:
@@ -472,7 +472,7 @@ def get_service_connections(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_service_connections"
     try:
@@ -534,7 +534,7 @@ def get_prisma_access(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_prisma_access"
     try:
@@ -603,7 +603,7 @@ def get_platform(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_platform"
     try:

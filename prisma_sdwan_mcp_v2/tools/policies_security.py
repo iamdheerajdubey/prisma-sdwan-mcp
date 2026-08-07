@@ -99,7 +99,7 @@ def get_policies(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_policies"
     try:
@@ -194,7 +194,7 @@ def get_security(
             matches still returns the same collection key with an empty
             list, not a different shape.
         limit: Max items to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "get_security"
     try:

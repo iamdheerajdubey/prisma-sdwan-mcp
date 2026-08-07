@@ -42,7 +42,7 @@ def find_site(name: str, cursor: Optional[str] = None, limit: Optional[int] = No
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max matches to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "find_site"
     try:
@@ -77,7 +77,7 @@ def find_element(name: str, cursor: Optional[str] = None, limit: Optional[int] =
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max matches to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "find_element"
     try:
@@ -124,7 +124,7 @@ def find_resource(
         cursor: Opaque pagination token copied from a previous response's
             `next_cursor`. Omit on the first call.
         limit: Max matches to return in this page. Omit to use the server
-            default page size.
+            default page size (50; max 200).
     """
     tool = "find_resource"
     try:
@@ -327,7 +327,7 @@ def read_capability(
             is bound to the tool that issued it — one from another tool is
             rejected rather than applied to an unrelated list.
         limit: Max items to return in this page when the result is a list.
-            Omit to use the server default page size. This is the tool's own
+            Omit to use the server default page size (50; max 200). This is the tool's own
             paging, applied after the response arrives — prefer it over a
             ``limit`` field in `body`.
         detail: ``"compact"`` (default) lets a large response drop fields that
