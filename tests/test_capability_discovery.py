@@ -65,6 +65,34 @@ def test_tool_lists_every_domain_without_truncation(monkeypatch):
         assert len(payload["capabilities"]) == entry["action_count"], entry["domain"]
 
 
+def test_browsing_is_compact_but_still_lists_every_action():
+    """Browsing drops the execution contract, never an action."""
+    runtime.ensure_initialized()
+    entry = next(d for d in runtime.catalog.domains() if d["action_count"] > 20)
+    compact = _call(domain=entry["domain"])
+    full = _call(domain=entry["domain"], detail="full")
+    assert len(compact["capabilities"]) == entry["action_count"]
+    assert len(full["capabilities"]) == entry["action_count"]
+    assert "body_schema" not in compact["capabilities"][0]
+    assert "body_schema" in full["capabilities"][0]
+    assert "detail_note" in compact
+    assert len(json.dumps(compact)) < len(json.dumps(full))
+
+
+def test_single_action_lookup_returns_the_full_contract():
+    runtime.ensure_initialized()
+    payload = _call(action_id="sites_devices.element_query")
+    for key in ("action_id", "http_method", "path_parameters", "body_schema", "output_fields"):
+        assert key in payload["capability"]
+
+
+def test_unknown_action_id_is_a_clean_400():
+    runtime.ensure_initialized()
+    payload = _call(action_id="nope.nope")
+    assert payload["code"] == "invalid_argument"
+    assert payload["retryable"] is False
+
+
 def test_tool_lists_every_domain_in_the_domain_index(monkeypatch):
     monkeypatch.setenv("MCP_MAX_RESPONSE_BYTES", "8192")
     runtime.ensure_initialized()

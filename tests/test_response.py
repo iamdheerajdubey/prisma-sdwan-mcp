@@ -1,6 +1,22 @@
 import json
 
-from prisma_sdwan_mcp_v2.response import collection_json
+from prisma_sdwan_mcp_v2.response import collection_json, single_json
+
+
+def test_oversize_single_object_is_outlined_not_stubbed(monkeypatch):
+    """A single object cannot be paged, so describe it instead of dropping it."""
+    monkeypatch.setenv("MCP_MAX_RESPONSE_BYTES", "4096")
+    blob = {
+        "window": {"start": "t0", "end": "t1"},
+        "links": [{"path_id": f"p{i}", "admin_up": True} for i in range(600)],
+    }
+    payload = json.loads(single_json("t", "s", "result", blob))
+    assert payload["truncated"] is True
+    assert payload["result"]["window"] == {"start": "t0", "end": "t1"}  # small values kept verbatim
+    assert payload["result"]["links"]["count"] == 600                   # big ones described
+    assert payload["result"]["links"]["bytes"] > 0
+    assert "path_id" in payload["result"]["links"]["item_fields"]
+    assert "warning" in payload
 
 
 def test_collection_paginates_with_cursor():

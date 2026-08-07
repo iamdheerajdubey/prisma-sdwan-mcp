@@ -187,6 +187,40 @@ def _compact_records(records: list[Any], budget_fits: Any) -> tuple[list[Any], d
     return selected, notes
 
 
+_INLINE_VALUE_BYTES = 200
+
+
+def _outline(value: Any) -> Any:
+    """Describe the shape of an object too big to return, instead of dropping it.
+
+    A single object cannot be paged - there is nothing to split - so an oversize
+    one previously came back as an identifier stub that told the caller nothing.
+    An outline keeps every small value verbatim and replaces each large one with
+    what it is and how much of it there is, so the caller learns that (say) a
+    topology holds 535 links and can go and page them with the tool that can.
+    """
+    if isinstance(value, dict):
+        described: dict[str, Any] = {}
+        for name, item in value.items():
+            if len(compact_json(item).encode("utf-8")) <= _INLINE_VALUE_BYTES:
+                described[name] = item
+                continue
+            described[name] = _outline(item)
+        return described
+    if isinstance(value, list):
+        # Count alone can mislead: a list of one metric series holding thousands
+        # of datapoints reads as "count: 1". Give the weight as well.
+        shape: dict[str, Any] = {"omitted": "list", "count": len(value), "bytes": len(compact_json(value).encode("utf-8"))}
+        records = [x for x in value if isinstance(x, dict)]
+        if records:
+            keys: set[str] = set()
+            for record in records[:50]:
+                keys.update(record)
+            shape["item_fields"] = sorted(keys)
+        return shape
+    return {"omitted": type(value).__name__, "bytes": len(compact_json(value).encode("utf-8"))}
+
+
 def _payload(tool: str, summary: str, key: str, items: list[Any], total: int, next_offset: int, extra: dict[str, Any] | None = None) -> dict[str, Any]:
     result: dict[str, Any] = {
         "contract_version": CONTRACT_VERSION,
@@ -299,4 +333,17 @@ def single_json(tool: str, summary: str, key: str, item: Any, extra: dict[str, A
     serialized = compact_json(payload)
     if len(serialized.encode("utf-8")) <= get_max_response_bytes():
         return serialized
+    if isinstance(item, (dict, list)):
+        payload[key] = _outline(item)
+        payload["truncated"] = True
+        payload["warning"] = (
+            "this result is a single object too large to return in full, and a single object cannot be "
+            "paged. Every value small enough to keep is shown verbatim; each larger one is replaced by "
+            "its shape and size. Fetch the part you need with a tool that pages it (each 'count' above "
+            "says how much there is), narrow the request (one site/element, a shorter window), or raise "
+            "MCP_MAX_RESPONSE_BYTES"
+        )
+        outlined = compact_json(payload)
+        if len(outlined.encode("utf-8")) <= get_max_response_bytes():
+            return outlined
     return collection_json(tool, summary, key, [item], limit=1, extra=extra)

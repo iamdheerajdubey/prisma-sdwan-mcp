@@ -166,20 +166,45 @@ def find_resource(
 CATALOG_LISTING_BUDGET = 256 * 1024
 
 
+def _browse_entry(action: dict[str, Any]) -> dict[str, Any]:
+    """What it takes to *choose* an action, not to execute it.
+
+    Browsing a domain is the step before picking one action, so the full
+    execution contract - body_schema in particular, which is a dozen fields of
+    query boilerplate repeated per action - is dead weight until the choice is
+    made. Everything omitted here is one `list_capabilities(action_id=...)` away.
+    """
+    entry = {
+        "action_id": action["action_id"],
+        "http_method": action["http_method"],
+        "description": action.get("description", ""),
+    }
+    required = [p["name"] for p in action.get("path_parameters") or [] if p.get("required")]
+    if required:
+        entry["required_path_parameters"] = required
+    if action.get("body_schema"):
+        entry["takes_body"] = True
+    if action.get("requires_live_test"):
+        entry["requires_live_test"] = True
+    return entry
+
+
 @mcp.tool(annotations=READ_ONLY)
 def list_capabilities(
     domain: Optional[str] = None,
     method: Optional[Literal["GET", "POST"]] = None,
+    action_id: Optional[str] = None,
+    detail: Optional[Literal["compact", "full"]] = None,
 ) -> str:
     """Browse the v2 capability catalog when no semantic tool fits the request.
 
     This is the discovery companion to ``read_capability``. Normal operator
     workflows should prefer semantic tools. Call with no arguments to list
     every domain and its action count. Call again with ``domain`` set to one
-    of the returned identifiers to list every action in that domain — each
-    entry carries the full execution contract (``action_id``, ``http_method``,
-    ``path_parameters``, ``body_schema``) that ``read_capability`` needs, with
-    no truncation.
+    of the returned identifiers to list every action in that domain. Browsing a
+    domain returns what you need to *choose* an action; ask for one `action_id`
+    to get the full execution contract needed to *run* it. Nothing is ever
+    truncated at either step.
 
     Args:
         domain: A domain identifier returned by a prior no-argument call
@@ -187,9 +212,25 @@ def list_capabilities(
             list every domain instead of one domain's actions.
         method: Filter one domain's actions to only ``"GET"`` or only
             ``"POST"``. Ignored (and has no effect) when `domain` is omitted.
+        action_id: An exact action identifier. Returns that one action's full
+            contract — ``path_parameters``, ``body_schema``, ``output_fields``,
+            ``api_version`` — which is what ``read_capability`` needs. Use this
+            after browsing a domain; `domain` and `method` are ignored when it
+            is set.
+        detail: Applies to a domain listing. ``"compact"`` (default) returns
+            ``action_id``, ``http_method``, ``description``, any required path
+            parameters, and whether the action takes a body — enough to pick
+            one. ``"full"`` returns every action's complete contract in one
+            response, which for a large domain is several times bigger.
     """
     tool = "list_capabilities"
     try:
+        if action_id:
+            try:
+                action = runtime.catalog.describe(action_id.strip())
+            except RegistryError as exc:
+                return error_json("invalid_argument", str(exc), tool, 400, {"action_id": action_id})
+            return single_json(tool, f"Full execution contract for {action_id}", "capability", action)
         if domain is None:
             domains = runtime.catalog.domains()
             entries = [
@@ -225,14 +266,20 @@ def list_capabilities(
                 400,
                 {"valid_domains": valid_domains},
             )
+        entries = matches if detail == "full" else [_browse_entry(a) for a in matches]
+        note = None if detail == "full" else (
+            'body_schema, output_fields and the rest of the execution contract are omitted while browsing - '
+            'get one action in full with list_capabilities(action_id="..."), or the whole domain with detail="full"'
+        )
         return collection_json(
             tool,
             f"{len(matches)} action(s) in domain '{domain}'",
             "capabilities",
-            matches,
+            entries,
             limit=get_max_page_size(),
             budget=CATALOG_LISTING_BUDGET,
-            extra={"domain": domain, "action_count": len(matches)},
+            detail="full",  # never field-compact the catalog itself; it is chosen from, not read
+            extra={"domain": domain, "action_count": len(matches), "detail_note": note},
         )
     except Exception as exc:
         return handle_error(tool, exc)
