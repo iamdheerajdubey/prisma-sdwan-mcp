@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Any, Literal, Optional
 
 from .. import runtime
-from ..config import allow_unverified_compat, expert_tool_enabled
+from ..catalog import RegistryError
+from ..config import allow_unverified_compat, expert_tool_enabled, get_max_page_size
 from ..mcp import READ_ONLY, mcp
 from ..response import collection_json, error_json, single_json
 from .common import execute, fail_from_upstream, handle_error, records, resolve
@@ -118,44 +119,74 @@ def find_resource(
         return handle_error(tool, exc)
 
 
+# The catalog is fixed, bounded metadata, not API payload, so it is listed under its
+# own budget instead of the response cap meant to keep large Prisma results out of
+# context. list_capabilities exposes no cursor by design, so a truncated listing would
+# make the dropped actions permanently unreachable rather than merely paginated.
+# Largest domain today serializes to ~28 KB.
+CATALOG_LISTING_BUDGET = 256 * 1024
+
+
 @mcp.tool(annotations=READ_ONLY)
-def search_capabilities(
-    search: Optional[str] = None,
+def list_capabilities(
     domain: Optional[str] = None,
     method: Optional[Literal["GET", "POST"]] = None,
-    detail: Literal["summary", "full"] = "summary",
-    limit: int = 50,
 ) -> str:
-    """Search the v2 capability catalog when no semantic tool fits the request.
+    """Browse the v2 capability catalog when no semantic tool fits the request.
 
     This is the discovery companion to ``read_capability``. Normal operator
-    workflows should prefer semantic tools. The catalog contains the 308 source
-    registry actions plus a small, labeled curated overlay for registry gaps.
+    workflows should prefer semantic tools. Call with no arguments to list
+    every domain and its action count. Call again with ``domain`` set to one
+    of the returned identifiers to list every action in that domain — each
+    entry carries the full execution contract (``action_id``, ``http_method``,
+    ``path_parameters``, ``body_schema``) that ``read_capability`` needs, with
+    no truncation.
     """
-    tool = "search_capabilities"
+    tool = "list_capabilities"
     try:
-        if limit < 1 or limit > 100:
-            return error_json("invalid_limit", "limit must be between 1 and 100", tool, 400)
-        matches = runtime.catalog.search(search, domain, method, limit)
-        if detail == "summary":
-            matches = [
+        if domain is None:
+            domains = runtime.catalog.domains()
+            entries = [
                 {
-                    key: item.get(key)
-                    for key in ("action_id", "domain", "description", "http_method", "source", "requires_live_test")
-                    if item.get(key) is not None
+                    "domain": d["domain"],
+                    "title": d["title"],
+                    "description": d["description"],
+                    "action_count": d["action_count"],
+                    "next_call": f'list_capabilities(domain="{d["domain"]}")',
                 }
-                for item in matches
+                for d in domains
             ]
+            return collection_json(
+                tool,
+                f"{len(entries)} domain(s) in the capability catalog",
+                "domains",
+                entries,
+                limit=get_max_page_size(),
+                budget=CATALOG_LISTING_BUDGET,
+                extra={
+                    "registry_actions": runtime.catalog.registry_action_count,
+                    "compat_actions": runtime.catalog.compat_action_count,
+                },
+            )
+        try:
+            matches = runtime.catalog.list_actions(domain, method)
+        except RegistryError:
+            valid_domains = sorted(d["domain"] for d in runtime.catalog.domains())
+            return error_json(
+                "invalid_argument",
+                f"unknown domain '{domain}'",
+                tool,
+                400,
+                {"valid_domains": valid_domains},
+            )
         return collection_json(
             tool,
-            f"Found {len(matches)} matching capability/capabilities",
+            f"{len(matches)} action(s) in domain '{domain}'",
             "capabilities",
             matches,
-            limit=min(limit, 100),
-            extra={
-                "registry_actions": runtime.catalog.registry_action_count,
-                "compat_actions": runtime.catalog.compat_action_count,
-            },
+            limit=get_max_page_size(),
+            budget=CATALOG_LISTING_BUDGET,
+            extra={"domain": domain, "action_count": len(matches)},
         )
     except Exception as exc:
         return handle_error(tool, exc)
@@ -171,7 +202,7 @@ def read_capability(
 ) -> str:
     """Execute one exact read-only registry capability as an expert escape hatch.
 
-    Prefer the semantic tools first. Use ``search_capabilities`` to discover an
+    Prefer the semantic tools first. Use ``list_capabilities`` to discover an
     action_id. Parameters are validated against the registry and every response
     passes through central recursive secret redaction and response-size limits.
 

@@ -25,7 +25,7 @@ The source registry is not rewritten. It's loaded as the API source of truth, wi
 
 The aim is not one tool per API. The aim is one tool per common operator intent, with a controlled escape hatch for rare APIs.
 
-- **Discovery / resolution (6):** `find_site`, `find_element`, `find_resource`, `search_capabilities`, `read_capability`, `resolve_path`
+- **Discovery / resolution (6):** `find_site`, `find_element`, `find_resource`, `list_capabilities`, `read_capability`, `resolve_path`
 - **Core network operations (5):** `get_inventory`, `get_device_health`, `get_interfaces`, `get_topology`, `get_wan`
 - **Routing / diagnostics / monitoring (3):** `get_routing`, `get_device_diagnostics`, `get_monitoring`
 - **Policy / security (2):** `get_policies`, `get_security`

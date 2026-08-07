@@ -29,7 +29,7 @@ class API:
 pr=types.ModuleType("prisma_sase"); pr.API=API; sys.modules["prisma_sase"]=pr
 import prisma_sdwan_mcp_v2.server as s
 assert len(s.mcp.tools)==26
-assert len(s.mcp.resources)==5
+assert len(s.mcp.resources)==4
 assert len(s.mcp.prompts)==4
 '''
     env = dict(os.environ)

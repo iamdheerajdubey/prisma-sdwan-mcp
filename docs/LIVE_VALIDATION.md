@@ -171,7 +171,7 @@ This only allows those exact actions through the generic `read_capability` exper
 
 ## Step 7 - Generic registry spot checks
 
-Use `search_capabilities` and `read_capability` across every domain. At minimum test one GET and one POST/query action where each exists.
+Use `list_capabilities(domain=...)` and `read_capability` across every domain. At minimum test one GET and one POST/query action where each exists.
 
 Important domains to spot-check:
 

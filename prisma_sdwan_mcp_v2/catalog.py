@@ -169,36 +169,16 @@ class CapabilityCatalog:
             result.append({**info, "action_count": sum(1 for a in self._actions.values() if a.domain == name)})
         return sorted(result, key=lambda x: x["domain"])
 
-    def search(
-        self,
-        text: str | None = None,
-        domain: str | None = None,
-        method: str | None = None,
-        limit: int = 50,
-    ) -> list[dict[str, Any]]:
-        needle = (text or "").strip().lower()
+    def list_actions(self, domain: str, method: str | None = None) -> list[dict[str, Any]]:
+        if domain not in self._domains:
+            raise RegistryError(f"Unknown domain: {domain}")
         method_value = method.upper() if method else None
-        matches = []
-        for action in self._actions.values():
-            if domain and action.domain != domain:
-                continue
-            if method_value and action.http_method != method_value:
-                continue
-            haystack = " ".join(
-                [
-                    action.action_id,
-                    action.domain,
-                    action.sdk_call,
-                    action.description,
-                    action.url_template or "",
-                    " ".join(action.output_fields),
-                ]
-            ).lower()
-            if needle and needle not in haystack:
-                continue
-            matches.append(self.describe(action.action_id))
-            if len(matches) >= limit:
-                break
+        matches = [
+            self.describe(action.action_id)
+            for action in self._actions.values()
+            if action.domain == domain and (method_value is None or action.http_method == method_value)
+        ]
+        matches.sort(key=lambda m: m["action_id"])
         return matches
 
     def describe(self, action_id: str) -> dict[str, Any]:

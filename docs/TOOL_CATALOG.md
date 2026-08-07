@@ -7,7 +7,7 @@
 | `find_site` | Safe site name/ID resolution |
 | `find_element` | Safe ION/element name/ID resolution |
 | `find_resource` | Resolve machine/app/zone/WAN network/path group/service label/VRF/policy |
-| `search_capabilities` | Search the full registry by human text/domain/method |
+| `list_capabilities` | Browse the full registry by domain, with exact method filtering |
 | `read_capability` | Guarded expert execution of an exact read-only action_id |
 | `resolve_path` | Map opaque path IDs to WAN interface/AnyNet/VPN leg |
 | `get_inventory` | Sites, elements, machines, application definitions |
@@ -33,4 +33,4 @@
 
 ## Why the expert tool exists
 
-Some of the 308 registry actions will be rare or tenant-specific. Creating a dedicated MCP tool for each would make normal AI tool selection worse. `search_capabilities` + `read_capability` covers that long tail while keeping the normal surface understandable.
+Some of the 308 registry actions will be rare or tenant-specific. Creating a dedicated MCP tool for each would make normal AI tool selection worse. `list_capabilities` + `read_capability` covers that long tail while keeping the normal surface understandable: `list_capabilities()` enumerates domains, `list_capabilities(domain=...)` lists every action in one, no text guessing involved.

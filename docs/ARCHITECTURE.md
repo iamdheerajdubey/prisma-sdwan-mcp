@@ -47,6 +47,8 @@ Loads:
 
 It validates unique action IDs, supported methods, SDK call names, and path-parameter definitions.
 
+Catalog discovery is enumeration, not search: the catalog is a fixed 316-entry list across 19 domains, largest domain 43 entries, well within a single response. `list_capabilities()` lists domains; `list_capabilities(domain=...)` lists every action in one, in full, every time. There is no free-text matching against descriptions — an AI's phrasing never has to guess a term that happens to appear in stored prose.
+
 ### `executor.py`
 
 Generic API execution engine.

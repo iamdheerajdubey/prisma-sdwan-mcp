@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prisma SD-WAN MCP v2 - Tool Catalog</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273549;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --green: #34d399;
+    --red: #f87171;
+    --code-bg: #0b1220;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.5;
+    padding: 2rem 1rem 4rem;
+  }
+  .wrap { max-width: 1000px; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 1.5rem; }
+  header h1 { font-size: 1.6rem; letter-spacing: -0.02em; }
+  header p { color: var(--muted); margin-top: 0.4rem; font-size: 0.95rem; }
+  .badges { margin-top: 0.8rem; display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+  .badge {
+    font-size: 0.75rem; padding: 0.25rem 0.7rem; border-radius: 999px;
+    border: 1px solid var(--border); color: var(--muted); background: var(--panel);
+  }
+  .badge.green { color: var(--green); border-color: #065f46; }
+  .searchbox {
+    position: sticky; top: 0; z-index: 10; padding: 0.8rem 0;
+    background: linear-gradient(var(--bg) 80%, transparent);
+  }
+  .searchbox input {
+    width: 100%; padding: 0.75rem 1rem; font-size: 1rem;
+    border-radius: 10px; border: 1px solid var(--border); background: var(--panel);
+    color: var(--text); outline: none;
+  }
+  .searchbox input:focus { border-color: var(--accent); }
+  .section { margin-top: 1.6rem; }
+  .section > h2 {
+    font-size: 1rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--accent); margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.5rem;
+  }
+  .section > h2 .count {
+    font-size: 0.7rem; color: var(--muted); background: var(--panel-2);
+    border-radius: 999px; padding: 0.1rem 0.55rem; letter-spacing: 0;
+  }
+  details {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 0.7rem; overflow: hidden;
+  }
+  details[open] { border-color: #475569; }
+  summary {
+    cursor: pointer; padding: 0.85rem 1.1rem; list-style: none;
+    display: flex; align-items: center; gap: 0.7rem; user-select: none;
+  }
+  summary::-webkit-details-marker { display: none; }
+  summary:hover { background: var(--panel-2); }
+  summary .caret { color: var(--muted); transition: transform 0.15s; font-size: 0.8rem; }
+  details[open] summary .caret { transform: rotate(90deg); }
+  summary .toolname { font-family: ui-monospace, Consolas, monospace; font-size: 0.95rem; font-weight: 600; }
+  summary .desc { color: var(--muted); font-size: 0.85rem; flex: 1; }
+  summary .methods { font-size: 0.7rem; color: var(--green); border: 1px solid #065f46; border-radius: 6px; padding: 0.1rem 0.5rem; white-space: nowrap; }
+  .table-wrap { padding: 0.2rem 1.1rem 1rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th {
+    text-align: left; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--muted); padding: 0.5rem 0.4rem; border-bottom: 1px solid var(--border);
+  }
+  td { padding: 0.45rem 0.4rem; font-size: 0.85rem; border-bottom: 1px solid #263449; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  td.op { white-space: nowrap; color: var(--accent); font-family: ui-monospace, Consolas, monospace; font-size: 0.8rem; }
+  td.api code {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.15rem 0.45rem; font-size: 0.8rem; display: inline-block; margin: 0.1rem 0;
+    font-family: ui-monospace, Consolas, monospace; color: #cbd5e1;
+  }
+  td.api code.multi { border-style: dashed; border-color: #475569; }
+  .none { color: var(--red); font-size: 0.8rem; }
+  .foot { text-align: center; color: var(--muted); font-size: 0.8rem; margin-top: 2rem; }
+  .hidden { display: none !important; }
+  @media (max-width: 640px) {
+    body { padding: 1rem 0.5rem 3rem; }
+    td.op { white-space: normal; }
+    summary { flex-wrap: wrap; }
+    summary .desc { flex-basis: 100%; order: 3; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Prisma SD-WAN MCP v2 &mdash; Tool Catalog</h1>
+    <p>26 AI tools and the controller API calls each one makes</p>
+    <div class="badges">
+      <span class="badge green">25 read-only</span>
+      <span class="badge">1 local-only write</span>
+      <span class="badge">1 generic escape hatch (308 registry actions)</span>
+    </div>
+  </header>
+
+  <div class="searchbox">
+    <input id="search" type="search" placeholder="Search tools, operations, or API calls (e.g. bgp, ipfix, vpn_wan, multicast)" autocomplete="off">
+  </div>
+
+  <div id="result-count" style="text-align:center;color:var(--muted);font-size:.85rem;min-height:1.2rem;"></div>
+
+  <!-- ============ DISCOVERY & RESOLUTION ============ -->
+  <div class="section" data-section>
+    <h2>Discovery &amp; Resolution <span class="count" data-count></span></h2>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">find_site</span>
+        <span class="desc">Resolve a human site name or ID without guessing</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>API Call</th></tr>
+          <tr><td class="api"><code>sites_devices.sites</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">find_element</span>
+        <span class="desc">Resolve an ION/element name or ID</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>API Call</th></tr>
+          <tr><td class="api"><code>sites_devices.elements</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">find_resource</span>
+        <span class="desc">Resolve machines, apps, zones, WAN networks, path groups, labels, VRFs, policies</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Kind</th><th>API Call</th></tr>
+          <tr><td class="op">machine</td><td class="api"><code>platform_specialized.machines</code></td></tr>
+          <tr><td class="op">application</td><td class="api"><code>security_policies.appdefs</code></td></tr>
+          <tr><td class="op">security_zone</td><td class="api"><code>security_policies.securityzones</code></td></tr>
+          <tr><td class="op">wan_network</td><td class="api"><code>vpn_wan.wannetworks</code></td></tr>
+          <tr><td class="op">path_group</td><td class="api"><code>network_priority_policies.pathgroups</code></td></tr>
+          <tr><td class="op">service_label</td><td class="api"><code>service_connections_extensions.servicelabels</code></td></tr>
+          <tr><td class="op">vrf</td><td class="api"><code>vpn_wan.vrfcontexts</code></td></tr>
+          <tr><td class="op">network_policy</td><td class="api"><code>network_priority_policies.networkpolicysets</code></td></tr>
+          <tr><td class="op">priority_policy</td><td class="api"><code>network_priority_policies.prioritypolicysets</code></td></tr>
+          <tr><td class="op">nat_policy</td><td class="api"><code>nat_policies.natpolicysets</code></td></tr>
+          <tr><td class="op">security_policy</td><td class="api"><code>security_policies.ngfwsecuritypolicysets</code></td></tr>
+          <tr><td class="op">performance_policy</td><td class="api"><code>performance_management.perfmgmtpolicysets</code></td></tr>
+          <tr><td class="op">policy (any family)</td><td class="api"><code class="multi">all 5 policy-set calls above</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">list_capabilities</span>
+        <span class="desc">Browse the 308-action registry by domain/method</span>
+        <span class="methods">LOCAL</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>API Call</th></tr>
+          <tr><td class="none">No controller call &mdash; lists the local catalog only</td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">read_capability</span>
+        <span class="desc">Expert escape hatch &mdash; execute any exact registry action_id</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>API Call</th></tr>
+          <tr><td class="api"><code class="multi">any action_id from the 308-action registry (dynamic)</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">resolve_path</span>
+        <span class="desc">Map an opaque path ID to WAN interface, AnyNet link, or VPN leg</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>API Call</th></tr>
+          <tr><td class="api"><code>vpn_wan.waninterfaces</code> <code>compat.topology</code></td></tr>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ CORE INVENTORY ============ -->
+  <div class="section" data-section>
+    <h2>Core Inventory <span class="count" data-count></span></h2>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_inventory</span>
+        <span class="desc">Sites, elements, machines, application definitions</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Kind</th><th>API Call</th></tr>
+          <tr><td class="op">sites</td><td class="api"><code>sites_devices.sites</code></td></tr>
+          <tr><td class="op">elements</td><td class="api"><code>sites_devices.elements</code></td></tr>
+          <tr><td class="op">machines</td><td class="api"><code>platform_specialized.machines</code></td></tr>
+          <tr><td class="op">applications</td><td class="api"><code>security_policies.appdefs</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_device_health</span>
+        <span class="desc">Combined element / software / interface health</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Purpose</th><th>API Call</th></tr>
+          <tr><td class="op">element status</td><td class="api"><code>sites_devices.element_status</code></td></tr>
+          <tr><td class="op">software state</td><td class="api"><code>software_upgrades.software_state</code></td></tr>
+          <tr><td class="op">software status</td><td class="api"><code>software_upgrades.software_status</code></td></tr>
+          <tr><td class="op">interface config</td><td class="api"><code>sites_devices.interfaces</code></td></tr>
+          <tr><td class="op">interface status</td><td class="api"><code class="multi">sites_devices.interfaces_status (per interface, capped)</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_interfaces</span>
+        <span class="desc">Interface config, status, or both</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>API Call</th></tr>
+          <tr><td class="api"><code>sites_devices.interfaces</code> <code class="multi">sites_devices.interfaces_status (fan-out)</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_topology</span>
+        <span class="desc">AnyNet topology summary/detail; basenet derives underlay from VPN legs</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>API Call</th></tr>
+          <tr><td class="api"><code>compat.topology</code> <code class="multi">compat.vpnlinks_status (per VPN leg)</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_wan</span>
+        <span class="desc">WAN interfaces, networks, paths, VPN links, VRFs, LAN, IPsec</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">networks</td><td class="api"><code>vpn_wan.wannetworks</code></td></tr>
+          <tr><td class="op">vrfs</td><td class="api"><code>vpn_wan.vrfcontexts</code></td></tr>
+          <tr><td class="op">ipsec_profiles</td><td class="api"><code>vpn_wan.ipsecprofiles</code></td></tr>
+          <tr><td class="op">vpn_leg_status</td><td class="api"><code>compat.vpnlinks_status</code></td></tr>
+          <tr><td class="op">vpn_leg_state</td><td class="api"><code>compat.vpnlinks_state</code></td></tr>
+          <tr><td class="op">interfaces</td><td class="api"><code>vpn_wan.waninterfaces</code></td></tr>
+          <tr><td class="op">paths</td><td class="api"><code>vpn_wan.wanpaths</code></td></tr>
+          <tr><td class="op">vpn_links</td><td class="api"><code>vpn_wan.vpnlinks_query</code></td></tr>
+          <tr><td class="op">lan_networks</td><td class="api"><code>vpn_wan.lannetworks</code></td></tr>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ ROUTING & DIAGNOSTICS ============ -->
+  <div class="section" data-section>
+    <h2>Routing &amp; Device Diagnostics <span class="count" data-count></span></h2>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_routing</span>
+        <span class="desc">BGP, OSPF, static routes, route maps/lists</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">bgp_peers</td><td class="api"><code>routing_bgp_ospf.bgppeers</code></td></tr>
+          <tr><td class="op">bgp_config</td><td class="api"><code>routing_bgp_ospf.bgpconfigs</code></td></tr>
+          <tr><td class="op">bgp_status</td><td class="api"><code>routing_bgp_ospf.bgppeers_status</code> <code class="multi">+ bgppeers_reachableprefixes (per peer, optional)</code></td></tr>
+          <tr><td class="op">bgp_prefixes</td><td class="api"><code>routing_bgp_ospf.bgppeers</code> <code>routing_bgp_ospf.bgppeers_reachableprefixes</code> / <code>bgppeers_advertisedprefixes</code> / <code>bgppeers_discoveredprefixes</code></td></tr>
+          <tr><td class="op">ospf_config</td><td class="api"><code>routing_bgp_ospf.ospfconfigs</code></td></tr>
+          <tr><td class="op">ospf_neighbors</td><td class="api"><code>routing_bgp_ospf.ospfconfigs</code> <code class="multi">+ ospfconfigs_ospfdiscoveredneighbors (per config)</code></td></tr>
+          <tr><td class="op">ospf_prefixes</td><td class="api"><code>routing_bgp_ospf.ospfconfigs</code> <code class="multi">+ ospfconfigs_ospfreachableprefixes (per config)</code></td></tr>
+          <tr><td class="op">static_routes</td><td class="api"><code>routing_bgp_ospf.staticroutes</code></td></tr>
+          <tr><td class="op">route_maps</td><td class="api"><code>routing_bgp_ospf.routing_routemaps</code></td></tr>
+          <tr><td class="op">prefix_lists</td><td class="api"><code>routing_bgp_ospf.routing_prefixlists</code></td></tr>
+          <tr><td class="op">community_lists</td><td class="api"><code>routing_bgp_ospf.routing_ipcommunitylists</code></td></tr>
+          <tr><td class="op">aspath_lists</td><td class="api"><code>routing_bgp_ospf.routing_aspathaccesslists</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_device_diagnostics</span>
+        <span class="desc">LLDP, MAC, VLAN mappings, BFD, app probes</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">lldp_neighbors</td><td class="api"><code>device_diagnostics.lldp_neighbors_status</code></td></tr>
+          <tr><td class="op">mac_table</td><td class="api"><code>device_diagnostics.mac_addresses_status</code></td></tr>
+          <tr><td class="op">bfd_peers</td><td class="api"><code>device_diagnostics.bfdpeers</code></td></tr>
+          <tr><td class="op">port_to_vlan</td><td class="api"><code>device_diagnostics.port_vlan_members</code></td></tr>
+          <tr><td class="op">vlan_to_port</td><td class="api"><code>device_diagnostics.vlan_port_members</code></td></tr>
+          <tr><td class="op">application_probe</td><td class="api"><code>device_diagnostics.application_probe</code></td></tr>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ MONITORING ============ -->
+  <div class="section" data-section>
+    <h2>Monitoring <span class="count" data-count></span></h2>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_monitoring</span>
+        <span class="desc">Events, alarms, flows, metrics, AIOps</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">events</td><td class="api"><code>compat.events_query</code></td></tr>
+          <tr><td class="op">alarms</td><td class="api"><code>compat.events_query</code></td></tr>
+          <tr><td class="op">flows</td><td class="api"><code>compat.monitor_flows</code></td></tr>
+          <tr><td class="op">link_metrics</td><td class="api"><code>compat.monitor_metrics</code> <code>compat.monitor_lqm_point_metrics</code></td></tr>
+          <tr><td class="op">probe_metrics</td><td class="api"><code>compat.monitor_probe_point_metrics</code></td></tr>
+          <tr><td class="op">aiops_health</td><td class="api"><code>monitoring_aiops.monitor_aiops_health</code></td></tr>
+          <tr><td class="op">aiops_anomaly</td><td class="api"><code>monitoring_aiops.monitor_aiops_anomaly</code></td></tr>
+          <tr><td class="op">aiops_forecast</td><td class="api"><code>monitoring_aiops.monitor_aiops_forecast</code></td></tr>
+          <tr><td class="op">aiops_aggregates</td><td class="api"><code>monitoring_aiops.monitor_aiops_aggregates</code></td></tr>
+          <tr><td class="op">system_metrics</td><td class="api"><code>monitoring_aiops.monitor_sys_metrics</code></td></tr>
+          <tr><td class="op">qos_metrics</td><td class="api"><code>monitoring_aiops.monitor_qos_metrics</code></td></tr>
+          <tr><td class="op">bandwidth_stats</td><td class="api"><code>monitoring_aiops.monitor_agg_bw_stats</code></td></tr>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ POLICIES & SECURITY ============ -->
+  <div class="section" data-section>
+    <h2>Policies &amp; Security <span class="count" data-count></span></h2>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_policies</span>
+        <span class="desc">Network / priority / NAT / security / performance policy sets, stacks, rules, status</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Family / Op</th><th>API Call</th></tr>
+          <tr><td class="op">network</td><td class="api"><code>network_priority_policies.networkpolicysets</code> <code>networkpolicysetstacks</code> <code>networkpolicyrules</code> <code>networkpolicysets_status</code></td></tr>
+          <tr><td class="op">priority</td><td class="api"><code>network_priority_policies.prioritypolicysets</code> <code>prioritypolicysetstacks</code> <code>prioritypolicyrules</code> <code>prioritypolicysets_status</code></td></tr>
+          <tr><td class="op">nat</td><td class="api"><code>nat_policies.natpolicysets</code> <code>natpolicysetstacks</code> <code>natpolicyrules</code> <code>natpolicysets_status</code></td></tr>
+          <tr><td class="op">security</td><td class="api"><code>security_policies.ngfwsecuritypolicysets</code> <code>ngfwsecuritypolicysetstacks</code> <code>ngfwsecuritypolicyrules</code> <span class="none">(no status)</span></td></tr>
+          <tr><td class="op">performance</td><td class="api"><code>performance_management.perfmgmtpolicysets</code> <code>perfmgmtpolicysetstacks</code> <code>perfmgmtpolicysets_perfmgmtpolicyrules</code> <code>perfmgmtpolicysets_status</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_security</span>
+        <span class="desc">Zones, application definitions/version, NGFW prefixes, SD-WAN apps</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">zones</td><td class="api"><code>security_policies.securityzones</code></td></tr>
+          <tr><td class="op">site_zones</td><td class="api"><code>security_policies.sitesecurityzones</code></td></tr>
+          <tr><td class="op">element_zones</td><td class="api"><code>security_policies.elementsecurityzones</code></td></tr>
+          <tr><td class="op">applications</td><td class="api"><code>security_policies.appdefs</code></td></tr>
+          <tr><td class="op">application_version</td><td class="api"><code>security_policies.appdefs_version</code></td></tr>
+          <tr><td class="op">global_prefixes</td><td class="api"><code>security_policies.ngfwsecuritypolicyglobalprefixes</code></td></tr>
+          <tr><td class="op">local_prefixes</td><td class="api"><code>security_policies.ngfwsecuritypolicylocalprefixes</code></td></tr>
+          <tr><td class="op">sdwan_apps</td><td class="api"><code>security_policies.sdwanapps</code></td></tr>
+          <tr><td class="op">sdwan_app_status</td><td class="api"><code>security_policies.sdwanapps_status</code></td></tr>
+          <tr><td class="op">sdwan_app_configs</td><td class="api"><code>security_policies.sdwanapps_configs</code></td></tr>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ SERVICES & DOMAINS ============ -->
+  <div class="section" data-section>
+    <h2>Services &amp; Platform Domains <span class="count" data-count></span></h2>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_network_services</span>
+        <span class="desc">DNS, DHCP, NTP, syslog, SNMP, TACACS+, RADIUS</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">dns_services</td><td class="api"><code>dns_services.dnsservices</code></td></tr>
+          <tr><td class="op">dns_profiles</td><td class="api"><code>dns_services.dnsserviceprofiles</code></td></tr>
+          <tr><td class="op">dns_roles</td><td class="api"><code>dns_services.dnsserviceroles</code></td></tr>
+          <tr><td class="op">dhcp_servers</td><td class="api"><code>vpn_wan.dhcpservers</code></td></tr>
+          <tr><td class="op">ntp</td><td class="api"><code>platform_specialized.ntp</code></td></tr>
+          <tr><td class="op">ntp_status</td><td class="api"><code>platform_specialized.ntp</code> <code>platform_specialized.ntp_status</code></td></tr>
+          <tr><td class="op">syslog_profiles</td><td class="api"><code>platform_specialized.syslogserverprofiles</code></td></tr>
+          <tr><td class="op">syslog_servers</td><td class="api"><code>platform_specialized.syslogservers</code></td></tr>
+          <tr><td class="op">snmp_agents</td><td class="api"><code>platform_specialized.snmpagents</code></td></tr>
+          <tr><td class="op">snmp_traps</td><td class="api"><code>platform_specialized.snmptraps</code></td></tr>
+          <tr><td class="op">tacacs_profiles</td><td class="api"><code>platform_specialized.tacacs_plus_profiles</code></td></tr>
+          <tr><td class="op">tacacs_servers</td><td class="api"><code>platform_specialized.tacacs_plus_servers</code></td></tr>
+          <tr><td class="op">radius</td><td class="api"><code>platform_specialized.radii</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_multicast</span>
+        <span class="desc">Multicast config, RPs, routes, IGMP, WAN status</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">config</td><td class="api"><code>multicast.multicastglobalconfigs</code></td></tr>
+          <tr><td class="op">dynamic_rps</td><td class="api"><code>multicast.multicastdynamicrps</code></td></tr>
+          <tr><td class="op">rps</td><td class="api"><code>multicast.multicastrps</code></td></tr>
+          <tr><td class="op">peer_groups</td><td class="api"><code>multicast.multicastpeergroups</code></td></tr>
+          <tr><td class="op">protocol_parameters</td><td class="api"><code>multicast.multicastprotocolparameters</code></td></tr>
+          <tr><td class="op">source_rps</td><td class="api"><code>multicast.multicastsourcesiderps</code></td></tr>
+          <tr><td class="op">source_site_config</td><td class="api"><code>multicast.multicastsourcesiteconfigs</code></td></tr>
+          <tr><td class="op">wan_status</td><td class="api"><code>multicast.multicastwanstatus</code></td></tr>
+          <tr><td class="op">routes</td><td class="api"><code>multicast.multicastroutes_query</code></td></tr>
+          <tr><td class="op">igmp_memberships</td><td class="api"><code>multicast.multicastigmpmemberships_query</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_ipfix</span>
+        <span class="desc">IPFIX config, collectors, filters, templates, prefixes</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">config</td><td class="api"><code>flow_monitoring_ipfix.ipfix</code></td></tr>
+          <tr><td class="op">collectors</td><td class="api"><code>flow_monitoring_ipfix.ipfixcollectorcontexts</code></td></tr>
+          <tr><td class="op">filters</td><td class="api"><code>flow_monitoring_ipfix.ipfixfiltercontexts</code></td></tr>
+          <tr><td class="op">profiles</td><td class="api"><code>flow_monitoring_ipfix.ipfixprofiles</code></td></tr>
+          <tr><td class="op">templates</td><td class="api"><code>flow_monitoring_ipfix.ipfixtemplates</code></td></tr>
+          <tr><td class="op">global_prefixes</td><td class="api"><code>flow_monitoring_ipfix.ipfixglobalprefixes</code></td></tr>
+          <tr><td class="op">local_prefixes</td><td class="api"><code>flow_monitoring_ipfix.site_ipfixlocalprefixes</code> / <code>flow_monitoring_ipfix.tenant_ipfixlocalprefixes</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_cellular</span>
+        <span class="desc">Cellular modules, images, APNs, firmware state</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">modules</td><td class="api"><code>cellular.element_cellular_modules</code></td></tr>
+          <tr><td class="op">module_images</td><td class="api"><code>cellular.cellular_module_images</code></td></tr>
+          <tr><td class="op">apn_profiles</td><td class="api"><code>cellular.apnprofiles</code></td></tr>
+          <tr><td class="op">firmware_status</td><td class="api"><code>cellular.cellular_module_firmware_status_query</code></td></tr>
+          <tr><td class="op">machine_modules</td><td class="api"><code>platform_specialized.machine_cellular_modules</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_software</span>
+        <span class="desc">Element software, upgrade and template status</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">element_state</td><td class="api"><code>software_upgrades.software_state</code></td></tr>
+          <tr><td class="op">element_status</td><td class="api"><code>software_upgrades.software_status</code></td></tr>
+          <tr><td class="op">machine_upgrade</td><td class="api"><code>software_upgrades.machine_upgrade_query</code></td></tr>
+          <tr><td class="op">upgrade_status</td><td class="api"><code>software_upgrades.upgrade_status_query</code></td></tr>
+          <tr><td class="op">site_templates</td><td class="api"><code>software_upgrades.bulkconfigurations_sitetemplates_query</code></td></tr>
+          <tr><td class="op">template_deployments</td><td class="api"><code>software_upgrades.bulkconfigurations_sitetemplates_deployments_query</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_identity</span>
+        <span class="desc">Directory, users, groups, active IPs, element users</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">directory_service</td><td class="api"><code>users_identity.directoryservices</code></td></tr>
+          <tr><td class="op">directory_status</td><td class="api"><code>users_identity.directoryservices_status</code></td></tr>
+          <tr><td class="op">directory_users</td><td class="api"><code>users_identity.directoryusers</code></td></tr>
+          <tr><td class="op">directory_groups</td><td class="api"><code>users_identity.directoryusergroups</code></td></tr>
+          <tr><td class="op">active_user_ips</td><td class="api"><code>users_identity.activeuserips_query</code></td></tr>
+          <tr><td class="op">tenant_users</td><td class="api"><code>users_identity.users</code></td></tr>
+          <tr><td class="op">element_users</td><td class="api"><code>users_identity.elementusers</code></td></tr>
+          <tr><td class="op">element_user_access</td><td class="api"><code>users_identity.elementusers_access</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_service_connections</span>
+        <span class="desc">Service connections, endpoints, bindings, labels, extensions</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">tenant_connections</td><td class="api"><code>service_connections_extensions.tenant_serviceconnections</code></td></tr>
+          <tr><td class="op">site_connections</td><td class="api"><code>service_connections_extensions.site_serviceconnections</code></td></tr>
+          <tr><td class="op">endpoints</td><td class="api"><code>service_connections_extensions.serviceendpoints</code></td></tr>
+          <tr><td class="op">binding_maps</td><td class="api"><code>service_connections_extensions.servicebindingmaps</code></td></tr>
+          <tr><td class="op">service_labels</td><td class="api"><code>service_connections_extensions.servicelabels</code></td></tr>
+          <tr><td class="op">tenant_extensions</td><td class="api"><code>service_connections_extensions.tenant_extensions</code></td></tr>
+          <tr><td class="op">site_extensions</td><td class="api"><code>service_connections_extensions.site_extensions</code></td></tr>
+          <tr><td class="op">element_extensions</td><td class="api"><code>service_connections_extensions.element_extensions</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_prisma_access</span>
+        <span class="desc">Prisma Access / SASE / ADEM integration state</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">site_config</td><td class="api"><code>platform_specialized.prismaaccess_configs</code></td></tr>
+          <tr><td class="op">connections</td><td class="api"><code>platform_specialized.prismasase_connections</code></td></tr>
+          <tr><td class="op">connection_status</td><td class="api"><code>platform_specialized.prismasase_connections_status</code></td></tr>
+          <tr><td class="op">connection_config</td><td class="api"><code>platform_specialized.prismasase_connections_configs</code></td></tr>
+          <tr><td class="op">advertised_prefixes</td><td class="api"><code>platform_specialized.pa_advertisedprefixes</code></td></tr>
+          <tr><td class="op">reachable_prefixes</td><td class="api"><code>platform_specialized.pa_reachableprefixes</code></td></tr>
+          <tr><td class="op">pa_networks</td><td class="api"><code>platform_specialized.panetworks</code></td></tr>
+          <tr><td class="op">integration_status</td><td class="api"><code>platform_specialized.pasdwan_integration_status</code></td></tr>
+          <tr><td class="op">adem_site_config</td><td class="api"><code>platform_specialized.demsiteconfigs</code></td></tr>
+          <tr><td class="op">adem_status</td><td class="api"><code>platform_specialized.demstatus</code></td></tr>
+        </table>
+      </div>
+    </details>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">get_platform</span>
+        <span class="desc">Tenant, licenses, SKUs, machines, reports, platform metadata</span>
+        <span class="methods">READ</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>Operation</th><th>API Call</th></tr>
+          <tr><td class="op">tenant</td><td class="api"><code>platform_specialized.tenants</code></td></tr>
+          <tr><td class="op">licenses</td><td class="api"><code>platform_specialized.licenses</code></td></tr>
+          <tr><td class="op">skus</td><td class="api"><code>platform_specialized.skus</code></td></tr>
+          <tr><td class="op">machines</td><td class="api"><code>platform_specialized.machines</code></td></tr>
+          <tr><td class="op">machine_system_status</td><td class="api"><code>platform_specialized.machinesystemstatus</code></td></tr>
+          <tr><td class="op">machine_software</td><td class="api"><code>platform_specialized.software</code></td></tr>
+          <tr><td class="op">reports</td><td class="api"><code>platform_specialized.reportsdir_query</code></td></tr>
+          <tr><td class="op">external_ca</td><td class="api"><code>platform_specialized.externalcaconfigs</code></td></tr>
+          <tr><td class="op">otp_access</td><td class="api"><code>platform_specialized.otpaccessconfigs</code></td></tr>
+          <tr><td class="op">hub_service_endpoints</td><td class="api"><code>platform_specialized.tenant_hubserviceendpoints</code></td></tr>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <!-- ============ LOCAL ONLY ============ -->
+  <div class="section" data-section>
+    <h2>Local Only <span class="count" data-count></span></h2>
+
+    <details open>
+      <summary>
+        <span class="caret">&#9654;</span>
+        <span class="toolname">generate_site_config</span>
+        <span class="desc">Validated local YAML generation for downstream automation</span>
+        <span class="methods">WRITE</span>
+      </summary>
+      <div class="table-wrap">
+        <table>
+          <tr><th>API Call</th></tr>
+          <tr><td class="none">No controller call &mdash; writes a local YAML file only</td></tr>
+        </table>
+      </div>
+    </details>
+  </div>
+
+  <p class="foot">Source: <code>prisma_sdwan_mcp_v2/tools/</code> &middot; 26 tools &middot; generated from code, not from the live registry</p>
+
+</div>
+
+<script>
+(function () {
+  var input = document.getElementById("search");
+  var countEl = document.getElementById("result-count");
+  var details = Array.prototype.slice.call(document.querySelectorAll("details"));
+  var sections = Array.prototype.slice.call(document.querySelectorAll(".section"));
+  var headerH = input.closest(".searchbox").offsetHeight;
+
+  function visibleCount() {
+    return details.filter(function (d) { return !d.classList.contains("hidden"); }).length;
+  }
+
+  function updateCounts() {
+    details.forEach(function (d) { d.style.setProperty("scroll-margin-top", (headerH + 16) + "px"); });
+    sections.forEach(function (s) {
+      var el = s.querySelector("[data-count]");
+      var n = s.querySelectorAll("details:not(.hidden)").length;
+      el.textContent = n;
+    });
+  }
+
+  input.addEventListener("input", function () {
+    var q = input.value.trim().toLowerCase();
+    details.forEach(function (d) {
+      var text = d.textContent.toLowerCase();
+      d.classList.toggle("hidden", !!q && text.indexOf(q) === -1);
+    });
+    sections.forEach(function (s) {
+      s.classList.toggle("hidden", s.querySelectorAll("details:not(.hidden)").length === 0);
+    });
+    var shown = visibleCount();
+    countEl.textContent = q ? shown + " of 26 tools match" : "";
+    updateCounts();
+  });
+
+  updateCounts();
+})();
+</script>
+</body>
+</html>

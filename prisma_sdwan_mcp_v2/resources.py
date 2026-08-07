@@ -24,11 +24,6 @@ def contract_resource() -> str:
     )
 
 
-@mcp.resource("prisma-v2://domains", mime_type="application/json")
-def domains_resource() -> str:
-    return json.dumps(runtime.catalog.domains(), separators=(",", ":"))
-
-
 @mcp.resource("prisma-v2://sites", mime_type="application/json")
 def sites_resource() -> str:
     return get_inventory(kind="sites")
