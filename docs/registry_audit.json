@@ -1,0 +1,195 @@
+{
+  "registry_actions": 308,
+  "compat_actions": 8,
+  "domains": [
+    {
+      "domain": "cellular",
+      "title": "Cellular",
+      "description": "Cellular modules, cellular module images, APN profiles.",
+      "action_count": 6
+    },
+    {
+      "domain": "compat_v1",
+      "title": "V1 Compatibility",
+      "description": "Read-only capabilities proven useful in v1 but absent from the generated registry.",
+      "action_count": 8
+    },
+    {
+      "domain": "device_diagnostics",
+      "title": "Device Diagnostics",
+      "description": "LLDP neighbors, MAC address tables, switch VLAN/port mappings, BFD peers, application probes.",
+      "action_count": 6
+    },
+    {
+      "domain": "dns_services",
+      "title": "DNS Services",
+      "description": "DNS service profiles, roles, and configured DNS services.",
+      "action_count": 6
+    },
+    {
+      "domain": "event_correlation_alerts",
+      "title": "Event Correlation & Alerts",
+      "description": "Event correlation policy sets, and the catalog of event codes/descriptions.",
+      "action_count": 6
+    },
+    {
+      "domain": "flow_monitoring_ipfix",
+      "title": "Flow Monitoring (IPFIX)",
+      "description": "IPFIX collector/filter contexts, templates, profiles, and global/local/site prefixes used for flow export.",
+      "action_count": 15
+    },
+    {
+      "domain": "monitoring_aiops",
+      "title": "Monitoring & AIOps Metrics",
+      "description": "Aggregated metrics, QoS/system metrics, and AIOps anomaly/forecast/health insights.",
+      "action_count": 11
+    },
+    {
+      "domain": "multicast",
+      "title": "Multicast",
+      "description": "Multicast global configs, rendezvous points, peer groups, protocol parameters, source-side RPs/configs, and WAN status.",
+      "action_count": 14
+    },
+    {
+      "domain": "nat_policies",
+      "title": "NAT Policies",
+      "description": "NAT rules, sets, stacks, zones, pools, and global/local NAT prefixes.",
+      "action_count": 16
+    },
+    {
+      "domain": "network_priority_policies",
+      "title": "Network & Priority Policies",
+      "description": "Network/priority policy sets and stacks, global/local prefix filters and their site associations, path prefix distribution filters, path groups, spoke prefix distribution lists, and generic policy sets.",
+      "action_count": 36
+    },
+    {
+      "domain": "performance_management",
+      "title": "Performance Management",
+      "description": "Performance management policy sets/stacks, threshold profiles, probe configs/profiles.",
+      "action_count": 14
+    },
+    {
+      "domain": "platform_specialized",
+      "title": "Platform, Licensing & Prisma Access",
+      "description": "Tenant details, licenses/SKUs, operator permissions, hub service endpoints, external CA configs, OTP access configs, RADIUS/TACACS+/SNMP/syslog/NTP admin config, machine inventory, hardware SKUs, and Prisma Access / Prisma SASE connection configs and status.",
+      "action_count": 42
+    },
+    {
+      "domain": "routing_bgp_ospf",
+      "title": "Routing (BGP / OSPF)",
+      "description": "BGP configs/peers/status, OSPF configs, plus element routing access-lists, community lists, prefix lists and route maps.",
+      "action_count": 20
+    },
+    {
+      "domain": "security_policies",
+      "title": "Security Policies & App Definitions",
+      "description": "Security zones, security policy sets, NGFW security policy sets/stacks/prefixes, application definitions and SD-WAN app catalog.",
+      "action_count": 23
+    },
+    {
+      "domain": "service_connections_extensions",
+      "title": "Service Connections & Extensions",
+      "description": "Service connections (site/tenant), service endpoints, service bindings/labels, and element/site/tenant level extensions.",
+      "action_count": 9
+    },
+    {
+      "domain": "sites_devices",
+      "title": "Sites & Devices",
+      "description": "Device/site inventory, state, status, models, images, correlation events, access states, hardware bypass, network segments, hub clusters, spoke clusters, site/tenant prefix sets, site ciphers.",
+      "action_count": 43
+    },
+    {
+      "domain": "software_upgrades",
+      "title": "Software & Upgrades",
+      "description": "Software/firmware version state and upgrade status.",
+      "action_count": 7
+    },
+    {
+      "domain": "users_identity",
+      "title": "Users & Identity",
+      "description": "Directory users/groups, directory service status, current user profile, tenant users.",
+      "action_count": 12
+    },
+    {
+      "domain": "vpn_wan",
+      "title": "VPN & WAN",
+      "description": "IPsec profiles, LAN networks, WAN interface labels/interfaces/networks, WAN overlays/paths, MSTP instances, VRF contexts, remote-network site migration, DHCP servers.",
+      "action_count": 22
+    }
+  ],
+  "actions_with_unknown_url_placeholder": [
+    "monitoring_aiops.monitor_aaa_metrics",
+    "monitoring_aiops.monitor_agg_bw_stats",
+    "monitoring_aiops.monitor_aggregates",
+    "monitoring_aiops.monitor_aiops_aggregates",
+    "monitoring_aiops.monitor_aiops_anomaly",
+    "monitoring_aiops.monitor_aiops_forecast",
+    "monitoring_aiops.monitor_aiops_health",
+    "monitoring_aiops.monitor_aiops_object_stats",
+    "monitoring_aiops.monitor_object_stats",
+    "monitoring_aiops.monitor_qos_metrics",
+    "monitoring_aiops.monitor_sys_metrics"
+  ],
+  "sensitive_schema_references": [
+    [
+      "users_identity.profile",
+      "session_id"
+    ],
+    [
+      "users_identity.profile",
+      "token_session"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.ikev1_params.properties.xauth_secret"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.ikev1_params.properties.xauth_secret_encrypted"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.ikev1_params.properties.xauth_secret_hash"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.passphrase"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.passphrase_encrypted"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.private_key"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.private_key_encrypted"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.secret"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.secret_encrypted"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.secret_hash"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.x509Objects.properties.passphrase"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.x509Objects.properties.privateKey"
+    ],
+    [
+      "vpn_wan.interfaces_status_query",
+      "properties.service_link.properties.ipsec_config.properties.authentication.properties.x509Objects.properties.private_key"
+    ]
+  ]
+}

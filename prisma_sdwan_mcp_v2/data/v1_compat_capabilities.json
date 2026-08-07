@@ -1,0 +1,104 @@
+{
+  "metadata": {
+    "purpose": "Read-only SDK capabilities used by api-mcp v1 but absent from mcp_registry_get_post.json.",
+    "requires_live_test": true
+  },
+  "actions": [
+    {
+      "action_id": "compat.topology",
+      "domain": "compat_v1",
+      "sdk_call": "topology",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {"type": "object", "properties": {"type": {"type": "string"}}},
+      "output_fields": ["nodes", "links"],
+      "description": "AnyNet topology query used by v1.",
+      "requires_live_test": true
+    },
+    {
+      "action_id": "compat.events_query",
+      "domain": "compat_v1",
+      "sdk_call": "events_query",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {"type": "object", "additionalProperties": true},
+      "output_fields": ["items"],
+      "description": "Event/alarm query used by v1.",
+      "requires_live_test": true
+    },
+    {
+      "action_id": "compat.monitor_flows",
+      "domain": "compat_v1",
+      "sdk_call": "monitor_flows",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {"type": "object", "additionalProperties": true},
+      "output_fields": ["items"],
+      "description": "Flow-monitoring query used by v1.",
+      "requires_live_test": true
+    },
+    {
+      "action_id": "compat.monitor_metrics",
+      "domain": "compat_v1",
+      "sdk_call": "monitor_metrics",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {"type": "object", "additionalProperties": true},
+      "output_fields": ["metrics"],
+      "description": "Bandwidth/system monitor metrics query used by v1.",
+      "requires_live_test": true
+    },
+    {
+      "action_id": "compat.monitor_lqm_point_metrics",
+      "domain": "compat_v1",
+      "sdk_call": "monitor_lqm_point_metrics",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {"type": "object", "additionalProperties": true},
+      "output_fields": ["metrics"],
+      "description": "LQM point metrics query used by v1.",
+      "requires_live_test": true
+    },
+    {
+      "action_id": "compat.monitor_probe_point_metrics",
+      "domain": "compat_v1",
+      "sdk_call": "monitor_probe_point_metrics",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {"type": "object", "additionalProperties": true},
+      "output_fields": ["metrics"],
+      "description": "Synthetic probe point metrics query used by v1.",
+      "requires_live_test": true
+    },
+    {
+      "action_id": "compat.vpnlinks_status",
+      "domain": "compat_v1",
+      "sdk_call": "vpnlinks_status",
+      "http_method": "GET",
+      "api_version": "v2.2",
+      "path_parameters": [{"name": "vpnlink_id", "required": true}],
+      "body_schema": null,
+      "output_fields": ["active", "usable", "link_up", "ep1_element_id", "ep2_element_id", "ep1_interface_id", "ep2_interface_id"],
+      "description": "Per-leg VPN link live status used by v1.",
+      "requires_live_test": true
+    },
+    {
+      "action_id": "compat.vpnlinks_state",
+      "domain": "compat_v1",
+      "sdk_call": "vpnlinks_state",
+      "http_method": "GET",
+      "api_version": "v2.0",
+      "path_parameters": [{"name": "vpnlink_id", "required": true}],
+      "body_schema": null,
+      "output_fields": ["enabled", "al_id"],
+      "description": "Per-leg VPN link administrative state used by v1.",
+      "requires_live_test": true
+    }
+  ]
+}

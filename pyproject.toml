@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prisma-sdwan-mcp-v2"
+version = "2.0.0"
+description = "Registry-first MCP server for Palo Alto Networks Prisma SD-WAN"
+requires-python = ">=3.11"
+dependencies = [
+  "fastmcp==3.4.4",
+  "prisma_sase==6.8.1b1",
+  "python-dotenv==1.2.2",
+  "pyyaml==6.0.3",
+  "jsonschema==4.25.1",
+]
+
+[project.scripts]
+prisma-sdwan-mcp-v2 = "prisma_sdwan_mcp_v2.server:main"
+
+[tool.setuptools.package-data]
+prisma_sdwan_mcp_v2 = ["data/*.json", "data/*.yaml"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+markers = [
+  "live: tests that require a live Prisma SD-WAN tenant",
+  "sdk: tests that require prisma_sase to be installed",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["prisma_sdwan_mcp_v2*"]
