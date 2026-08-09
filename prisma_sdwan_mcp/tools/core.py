@@ -6,7 +6,7 @@ from typing import Any, Literal, Optional
 from ..config import get_max_fanout
 from ..mcp import READ_ONLY, mcp
 from ..response import collection_json, error_json, single_json
-from .common import execute, fail_from_upstream, handle_error, project, records, resolve, site_element, summarize_states
+from .common import execute, fail_from_upstream, handle_error, match_named, project, records, resolve, site_element, summarize_states
 
 InventoryKind = Literal["sites", "elements", "machines", "applications"]
 InterfaceMode = Literal["config", "status", "both"]
@@ -232,8 +232,7 @@ def get_interfaces(
             return error_json("invalid_argument", "both site_id and element_id are required after resolution", tool, 400)
         configs = records(execute("sites_devices.interfaces", {"site_id": site_id, "element_id": element_id}))
         if interface:
-            needle = interface.strip().lower()
-            matches = [x for x in configs if str(x.get("id", "")) == interface or str(x.get("name", "")).lower() == needle or needle in str(x.get("name", "")).lower()]
+            matches = match_named(configs, interface)
             if not matches:
                 return error_json("not_found", f"no interface matches '{interface}'", tool, 404)
             if len(matches) > 1:

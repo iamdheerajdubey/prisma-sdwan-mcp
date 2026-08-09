@@ -4,7 +4,7 @@ from typing import Literal, Optional
 
 from ..mcp import READ_ONLY, mcp
 from ..response import collection_json, error_json, single_json
-from .common import execute, fail_from_upstream, handle_error, records, resolve, site_element
+from .common import execute, fail_from_upstream, handle_error, match_named, records, resolve, site_element
 
 PolicyFamily = Literal["network", "priority", "nat", "security", "performance", "all"]
 PolicyOperation = Literal["sets", "stacks", "rules", "status"]
@@ -204,8 +204,7 @@ def get_security(
             data = execute("security_policies.appdefs")
             items = records(data)
             if application:
-                needle = application.strip().lower()
-                items = [x for x in items if needle in str(x.get("display_name") or x.get("name") or "").lower()]
+                items = match_named(items, application, ("display_name", "name"))
             return collection_json(tool, f"Application definitions: {len(items)} match(es)", "applications", items, cursor=cursor, limit=limit, extra={"search": application})
         elif operation == "application_version":
             data = execute("security_policies.appdefs_version")

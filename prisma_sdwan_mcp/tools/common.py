@@ -60,6 +60,26 @@ def site_element(site: str | None, element: str | None) -> tuple[str | None, str
     return resolver.site_element(site, element)
 
 
+def match_named(items: list[dict[str, Any]], value: str, fields: tuple[str, ...] = ("name",)) -> list[dict[str, Any]]:
+    """Filter records by ID or name, exact match always winning over substring.
+
+    The same precedence the shared resolver applies, in the tools that filter an
+    already-fetched list instead of resolving a name. Without it, a record whose
+    name is an exact hit is merely one of the substring hits -- which makes short
+    names unaddressable: ION interfaces are named "1", "17", "19", so a substring
+    filter for "1" matches 18 of a device's 33 interfaces and the caller can never
+    single out interface 1 by name.
+    """
+    needle = value.strip().lower()
+    exact_id = [x for x in items if str(x.get("id", "")) == value]
+    if exact_id:
+        return exact_id
+    exact_name = [x for x in items if any(x.get(f) is not None and str(x[f]).lower() == needle for f in fields)]
+    if exact_name:
+        return exact_name
+    return [x for x in items if any(x.get(f) is not None and needle in str(x[f]).lower() for f in fields)]
+
+
 def project(items: list[dict[str, Any]], fields: set[str] | tuple[str, ...] | list[str]) -> list[dict[str, Any]]:
     return [{key: item[key] for key in fields if item.get(key) is not None} for item in items]
 

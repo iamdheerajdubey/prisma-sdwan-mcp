@@ -5,7 +5,7 @@ from typing import Any, Literal, Optional
 from ..config import get_max_fanout
 from ..mcp import READ_ONLY, mcp
 from ..response import collection_json, error_json, single_json
-from .common import execute, fail_from_upstream, handle_error, project, records, site_element
+from .common import execute, fail_from_upstream, handle_error, match_named, project, records, site_element
 
 RoutingOperation = Literal[
     "bgp_peers",
@@ -30,17 +30,6 @@ DiagnosticOperation = Literal[
     "bfd_peers",
     "application_probe",
 ]
-
-
-def _match_named(items: list[dict[str, Any]], value: str, fields: tuple[str, ...]) -> list[dict[str, Any]]:
-    needle = value.strip().lower()
-    exact_id = [x for x in items if str(x.get("id", "")) == value]
-    if exact_id:
-        return exact_id
-    exact_name = [x for x in items if any(x.get(f) is not None and str(x[f]).lower() == needle for f in fields)]
-    if exact_name:
-        return exact_name
-    return [x for x in items if any(x.get(f) is not None and needle in str(x[f]).lower() for f in fields)]
 
 
 @mcp.tool(annotations=READ_ONLY)
@@ -163,7 +152,7 @@ def get_routing(
             if not peer or not peer.strip():
                 return error_json("invalid_argument", "peer is required for bgp_prefixes", tool, 400)
             peers = records(execute("routing_bgp_ospf.bgppeers", paths))
-            matches = _match_named(peers, peer, ("name", "peer_ip", "peer_ip_address", "ip_address"))
+            matches = match_named(peers, peer, ("name", "peer_ip", "peer_ip_address", "ip_address"))
             if not matches:
                 return error_json("not_found", f"no BGP peer matches '{peer}'", tool, 404)
             if len(matches) > 1:

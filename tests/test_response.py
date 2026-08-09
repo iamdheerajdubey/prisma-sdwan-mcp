@@ -99,3 +99,43 @@ def test_lossless_passes_keep_every_value():
     payload = json.loads(collection_json("t", "s", "items", records, limit=200))
     assert payload["shared_fields"]["tenant_id"] == "same-for-all"   # hoisted, not lost
     assert "unused" in payload["omitted_empty_fields"]               # empty everywhere
+
+
+# --- match_named: exact wins over substring ------------------------------
+
+from prisma_sdwan_mcp.tools.common import match_named
+
+# Interface names as a real ion 5200 reports them: bare numbers, plus
+# service links whose names embed those same digits.
+REAL_INTERFACE_NAMES = [
+    {"id": "i1", "name": "1"},
+    {"id": "i15", "name": "15"},
+    {"id": "i17", "name": "17"},
+    {"id": "i1315", "name": "1315"},
+    {"id": "isl", "name": "MEMPHISHQ_1785862894648014296_ACT_SL"},
+]
+
+
+def test_exact_name_wins_over_substring():
+    assert [x["id"] for x in match_named(REAL_INTERFACE_NAMES, "1")] == ["i1"]
+    assert [x["id"] for x in match_named(REAL_INTERFACE_NAMES, "17")] == ["i17"]
+
+
+def test_exact_id_wins_over_everything():
+    assert [x["id"] for x in match_named(REAL_INTERFACE_NAMES, "i15")] == ["i15"]
+
+
+def test_substring_is_the_fallback_not_the_default():
+    matches = match_named(REAL_INTERFACE_NAMES, "13")
+    assert {x["id"] for x in matches} == {"i1315"}
+    assert {x["id"] for x in match_named(REAL_INTERFACE_NAMES, "MEMPHIS")} == {"isl"}
+
+
+def test_match_is_case_insensitive_and_trims():
+    assert [x["id"] for x in match_named(REAL_INTERFACE_NAMES, "  memphishq_1785862894648014296_act_sl ")] == ["isl"]
+
+
+def test_multi_field_match_checks_each_field_independently():
+    apps = [{"id": "a1", "display_name": "Office 365", "name": "office365"}, {"id": "a2", "display_name": "Office 365 Login", "name": "o365-login"}]
+    assert [x["id"] for x in match_named(apps, "office365", ("display_name", "name"))] == ["a1"]
+    assert {x["id"] for x in match_named(apps, "office", ("display_name", "name"))} == {"a1", "a2"}
