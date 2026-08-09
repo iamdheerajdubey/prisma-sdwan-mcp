@@ -164,8 +164,25 @@ PYTHONPATH=. pytest -q
 
 Live tenant/API validation is intentionally separate. Follow `docs/LIVE_VALIDATION.md` before production cutover.
 
+## Console: a second MCP consumer
+
+`webui/` is a local web console -- browse the tool surface, inspect live results, and optionally
+ask a real model a question with the call chain shown alongside the answer. It is a client of this
+server over MCP stdio, exactly like Claude Desktop or any other MCP host: it speaks the protocol,
+not the Python package, and it lives behind its own optional install extra so the base server gains
+nothing from its existence.
+
+```bash
+pip install -e ".[webui]"
+python webui/server.py
+```
+
+See `webui/README.md` for the credential model, the loopback-bind warning, and what was
+deliberately not carried over from its predecessor.
+
 ## Files to read first
 
 1. `docs/ARCHITECTURE.md`
 2. `docs/TOOL_CATALOG.md`
 3. `docs/LIVE_VALIDATION.md`
+4. `webui/README.md` -- if you're working on the console rather than the server
