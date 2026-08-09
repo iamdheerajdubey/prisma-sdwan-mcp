@@ -72,3 +72,36 @@ def allow_unverified_compat() -> bool:
 
 def data_dir() -> Path:
     return Path(__file__).resolve().parent / "data"
+
+
+def get_ion_credentials() -> tuple[str | None, str | None, str | None, str | None]:
+    return (
+        os.getenv("PRISMA_ION_USERNAME"),
+        os.getenv("PRISMA_ION_PASSWORD"),
+        os.getenv("PRISMA_ION_PRIVATE_KEY"),
+        os.getenv("PRISMA_ION_PRIVATE_KEY_PASSPHRASE"),
+    )
+
+
+def get_ion_ssh_port() -> int:
+    return _int_env("PRISMA_ION_SSH_PORT", 22, minimum=1)
+
+
+def get_ion_probe_timeout() -> float:
+    return float(_int_env("PRISMA_ION_PROBE_TIMEOUT", 3, minimum=1))
+
+
+def get_ion_connect_timeout() -> float:
+    return float(_int_env("PRISMA_ION_CONNECT_TIMEOUT", 10, minimum=1))
+
+
+def get_ion_read_timeout() -> float:
+    return float(_int_env("PRISMA_ION_READ_TIMEOUT", 300, minimum=1))
+
+
+def get_ion_max_output_bytes() -> int:
+    return _int_env("PRISMA_ION_MAX_OUTPUT_BYTES", 40960)
+
+
+def get_ion_max_commands() -> int:
+    return _int_env("PRISMA_ION_MAX_COMMANDS", 10)

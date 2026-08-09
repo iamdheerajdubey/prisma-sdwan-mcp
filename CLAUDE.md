@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Registry-first MCP (Model Context Protocol) server exposing Palo Alto Networks Prisma SD-WAN as 26 semantic AI tools, backed by a 316-action capability registry (308 generated + 8 curated) and the `prisma_sase` SDK. Python 3.11+, FastMCP.
+Registry-first MCP (Model Context Protocol) server exposing Palo Alto Networks Prisma SD-WAN as 27 semantic AI tools, backed by a 316-action capability registry (308 generated + 8 curated) and the `prisma_sase` SDK, plus one ION CLI passthrough tool (`run_commands`) over SSH via `netmiko`. Python 3.11+, FastMCP.
 
 ## Commands
 
@@ -65,17 +65,20 @@ AI  --intent-->  Semantic tool (prisma_sdwan_mcp/tools/*.py)
 
 Catalog discovery is **enumeration, not search**: `list_capabilities()` lists domains, `list_capabilities(domain=...)` returns every action in that domain in full every time. There is no free-text matching against descriptions.
 
-### The 26-tool surface (`prisma_sdwan_mcp/tools/`)
+### The 27-tool surface (`prisma_sdwan_mcp/tools/`)
 
-Split across `discovery.py`, `core.py`, `routing_diagnostics.py`, `policies_security.py`, `domains.py`, `monitoring.py`, `config_gen.py`. Registered in `server.py`. Grouped by intent, not by SDK domain:
+Split across `discovery.py`, `core.py`, `routing_diagnostics.py`, `policies_security.py`, `domains.py`, `monitoring.py`, `config_gen.py`, `cli.py`. Registered in `server.py`. Grouped by intent, not by SDK domain:
 - Discovery/resolution (6): `find_site`, `find_element`, `find_resource`, `list_capabilities`, `read_capability`, `resolve_path`
 - Core network ops (5), routing/diagnostics/monitoring (3), policy/security (2), service/domain families (9), local automation output (1): `generate_site_config`
+- ION CLI passthrough (1): `run_commands` — see below
 
 `read_capability` is the escape hatch: it can execute any of the 316 registry actions by `action_id` (with the curated-action gate above), so a long-tail API doesn't need a dedicated semantic tool.
 
 ### Mutation boundary
 
-All 26 tools are read-only, including `generate_site_config`. The API executor is entirely read-only — the source registry contains no controller mutation endpoints. `generate_site_config` validates one site's device list against `data/site_config_schema.json` and returns the structured config plus formatted YAML text to the caller; it does not write to disk and does not call a Prisma mutation API. The server holds no state between calls — turning the returned config into a real file, merging it with other sites, and applying it to the network is entirely the consumer's responsibility. Network changes are expected to go through Ansible/change-control, not this server. Preserve this boundary when adding tools: never wire a new tool to a controller write endpoint, and never give this server its own persistent storage.
+26 of the 27 tools are read-only, including `generate_site_config`. The API executor is entirely read-only — the source registry contains no controller mutation endpoints. `generate_site_config` validates one site's device list against `data/site_config_schema.json` and returns the structured config plus formatted YAML text to the caller; it does not write to disk and does not call a Prisma mutation API. The server holds no state between calls — turning the returned config into a real file, merging it with other sites, and applying it to the network is entirely the consumer's responsibility. Network changes are expected to go through Ansible/change-control, not this server. Preserve this boundary when adding tools: never wire a new tool to a controller write endpoint, and never give this server its own persistent storage.
+
+`run_commands` is the one exception: it runs a policy-approved batch of ION CLI commands over SSH directly against the device, not the controller API, so it is annotated `ACTIVE_DIAGNOSTIC` (not `READ_ONLY`) — the `ping`/`tcpping`/`dig` diagnostics it permits send real packets from the device. It still touches no controller write endpoint, changes no device configuration, and the server still holds no state between calls; only the read-only *claim* changes, not the mutation boundary itself. See `prisma_sdwan_mcp/cli/{policy,ssh,address}.py` and `docs/ION_CLI_RESEARCH.md`.
 
 ### Secret redaction
 
@@ -84,6 +87,8 @@ Every registry-executed response passes through recursive redaction (`safety.py`
 ## Key env vars (see `.env.example`, read via `config.py`)
 
 `PAN_CLIENT_ID`, `PAN_CLIENT_SECRET`, `PAN_TSG_ID`, `PAN_CONTROLLER`, `MCP_MAX_RESPONSE_BYTES`, `MCP_DEFAULT_PAGE_SIZE`, `MCP_MAX_PAGE_SIZE`, `MCP_MAX_FANOUT`, `MCP_EXPERT_TOOL_ENABLED`, `MCP_ALLOW_UNVERIFIED_COMPAT`.
+
+ION CLI passthrough (`run_commands`, all optional — unset means the tool always fails closed with `configuration_error`): `PRISMA_ION_USERNAME`, `PRISMA_ION_PASSWORD`, `PRISMA_ION_PRIVATE_KEY`, `PRISMA_ION_PRIVATE_KEY_PASSPHRASE`, `PRISMA_ION_SSH_PORT`, `PRISMA_ION_PROBE_TIMEOUT`, `PRISMA_ION_CONNECT_TIMEOUT`, `PRISMA_ION_READ_TIMEOUT`, `PRISMA_ION_MAX_OUTPUT_BYTES`, `PRISMA_ION_MAX_COMMANDS`.
 
 ## Files to read first
 

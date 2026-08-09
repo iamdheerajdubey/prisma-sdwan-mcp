@@ -260,3 +260,35 @@ Cut over when:
 - no secret leakage is observed;
 - representative registry actions pass in every domain;
 - operator questions produce accurate answers when cross-checked against the controller directly.
+
+## Step 7 — ION CLI address resolution (2026-08-09)
+
+Read-only validation of `prisma_sdwan_mcp/cli/address.py` against the live
+tenant. No SSH session was opened; this step only confirms which address the
+**controller API** can produce for a named element.
+
+Sampled device: `IMEMION1` (ion 5200, Memphis HQ), 33 interfaces.
+
+Findings that shaped the implementation:
+
+| Question | Answer |
+| --- | --- |
+| Does the API expose an ION's IP addresses? | Yes. |
+| Where does a **static** address live? | `sites_devices.interfaces` → `ipv4_config.static_config.address`, and also in the status record. |
+| Where does a **DHCP** address live? | Status record only. The config record is `{"type": "dhcp"}` with no address at all. `sites_devices.interfaces_status` → `ipv4_addresses` carries the live address for static and DHCP alike, so it is the only source read. |
+| Is `admin_up` a liveness signal? | No. True on nearly every interface including physically down ports. `operational_state` from the status record is the real signal. |
+| What separates a management address from noise? | `used_for`. On this device: 16 addressed interfaces total, 3 with `used_for` in (`controller`, `lan`), exactly 1 with `controller`. |
+| Is `element_status.controller_connection_intf` a usable tie-breaker? | **No.** It pointed at interface `1` — the DHCP public WAN port the device reaches the cloud through. Wrong target for SSH management, and the one interface with no config address. |
+
+Result on `IMEMION1`: interface `17`, `used_for: controller`, `10.175.10.101`,
+operationally up — one unambiguous answer.
+
+Sample across 15 site-assigned elements: **14 resolved to exactly one address**
+(11 via `controller`, 3 via `lan`). The single failure was `SPARE-2-TESTING`,
+an unprovisioned spare with no live management interface — the correct answer.
+
+Still unverified (needs a real SSH attempt, not an API call):
+
+- whether the MCPv2 host can route to these addresses (mostly RFC1918)
+- the `--More--` pagination marker
+- public-key SSH authentication

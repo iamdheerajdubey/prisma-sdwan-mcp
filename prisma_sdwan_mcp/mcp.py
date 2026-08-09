@@ -32,3 +32,12 @@ READ_ONLY = {
     "idempotentHint": True,
     "openWorldHint": True,
 }
+
+# ping/tcpping/dig send real packets from the device: not read-only, not
+# idempotent. Nothing here modifies device or controller configuration.
+ACTIVE_DIAGNOSTIC = {
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": False,
+    "openWorldHint": True,
+}

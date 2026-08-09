@@ -32,15 +32,17 @@ def fail_from_upstream(tool: str, value: Any) -> str | None:
     return None
 
 
-def handle_error(tool: str, exc: Exception) -> str:
+def handle_error(tool: str, exc: Exception, extra: dict[str, Any] | None = None) -> str:
     if isinstance(exc, ResolutionError):
         code = "ambiguous_match" if exc.candidates else "not_found"
-        return error_json(code, str(exc), tool, 409 if exc.candidates else 404, {"candidates": exc.candidates or None})
+        details = {"candidates": exc.candidates or None, **(extra or {})}
+        return error_json(code, str(exc), tool, 409 if exc.candidates else 404, details)
     if isinstance(exc, CapabilityExecutionError):
-        return error_json("invalid_capability_request", str(exc), tool, 400)
+        return error_json("invalid_capability_request", str(exc), tool, 400, extra)
     if isinstance(exc, RegistryError):
-        return error_json("invalid_argument", str(exc), tool, 400)
-    return error_json("internal_error", "unexpected server error", tool, 500, {"exception": type(exc).__name__})
+        return error_json("invalid_argument", str(exc), tool, 400, extra)
+    details = {"exception": type(exc).__name__, **(extra or {})}
+    return error_json("internal_error", "unexpected server error", tool, 500, details)
 
 
 def execute(action_id: str, paths: dict[str, Any] | None = None, body: dict[str, Any] | None = None) -> Any:

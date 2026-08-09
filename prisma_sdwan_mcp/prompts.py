@@ -49,6 +49,34 @@ def diagnose_routing_neighbor(site_hint: str, element_hint: str, protocol: str =
 
 
 @mcp.prompt
+def troubleshoot_ion(symptom_hint: str | None = None) -> str:
+    """Guided starting point for ION CLI troubleshooting via run_commands."""
+    subject = f" for: {symptom_hint}" if symptom_hint else ""
+    return (
+        f"ION CLI troubleshooting{subject}. Before calling run_commands:\n\n"
+        "1. Check the prisma-cli://policy resource (or just try a command) for the exact allowed "
+        "forms -- 'dump' and 'inspect' subcommands pass, as do the exact diagnostic forms "
+        "'ping <interface> <host>', 'tcpping <interface> <host>:<port>', and "
+        "'dig <interface> <dns-server> <hostname>'. Everything else is denied fail-closed, and a "
+        "denied batch never opens a connection. Prefer dump/inspect first: they only read the "
+        "device, whereas the three diagnostics send real packets from it.\n"
+        "2. Call run_commands(element=<name>, commands=[...]) -- element is resolved to an SSH "
+        "address the same way find_element resolves any other name; pass site=<site> if the name "
+        "is ambiguous, or host=<ip> directly for an out-of-band management address the controller "
+        "API cannot see. Credentials come from the server's PRISMA_ION_USERNAME/PRISMA_ION_PASSWORD "
+        "(or PRISMA_ION_PRIVATE_KEY) configuration, never from a call argument.\n"
+        "3. If the call fails with error code 'device_unreachable', this deployment has no network "
+        "path from wherever the MCP server runs to the device's management address -- that is an "
+        "infrastructure fact, not a device problem, and is not worth retrying.\n"
+        "4. Read each result independently -- a batch can partially succeed; one command's status "
+        "'error' does not invalidate the others.\n\n"
+        "Command selection itself (which dump/inspect subcommand answers the symptom) is the "
+        "calling agent's job, driven by its own skill files -- this server enforces safety and "
+        "addressing, it does not pick commands."
+    )
+
+
+@mcp.prompt
 def audit_site(site_hint: str) -> str:
     """Inventory and operational audit for one site."""
     return (

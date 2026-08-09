@@ -11,7 +11,7 @@ from .mcp import mcp
 runtime.initialize()
 
 # Tool registration.
-from .tools import config_gen, core, discovery, domains, monitoring, policies_security, routing_diagnostics  # noqa: E402,F401
+from .tools import cli, config_gen, core, discovery, domains, monitoring, policies_security, routing_diagnostics  # noqa: E402,F401
 from . import prompts, resources  # noqa: E402,F401
 
 

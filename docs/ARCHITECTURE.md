@@ -79,7 +79,32 @@ Handles authentication end-to-end:
 - bounded exponential backoff for 429 and 5xx;
 - retry accounting.
 
-## Why 26 tools, not 18 or 308
+## A second lane: ION CLI over SSH
+
+The registry lane above reaches the **controller API**. `run_commands` reaches the **device itself**, over SSH, through a parallel path that shares the resolver but not the executor:
+
+```text
+AI
+ |
+ |  operator intent
+ v
+run_commands (tools/cli.py)
+ |
+ +--> cli/policy.py    -- deny-by-default command gate, evaluated before anything else
+ +--> config.py         -- ION credential/timeout accessors (env, with per-call override)
+ +--> cli/address.py    -- element name -> SSH address, via tools/common.site_element()
+ |                          + the registry (sites_devices.interfaces / element_status)
+ +--> cli/ssh.py         -- probe_reachable() (stdlib TCP probe) -> Netmiko session
+ |
+ v
+response.py (single_json) + runtime.safety.redact
+```
+
+Order is load-bearing: policy validation, then credential availability, then address resolution, then the reachability probe, then the SSH session itself. A policy denial never reaches resolution; a missing credential never triggers a resolution call — see `docs/ION_CLI_RESEARCH.md` for the command-policy research this was built from.
+
+Unlike the registry lane, this path never touches `catalog.py` or `executor.py` (the API capability executor) directly for the SSH leg itself — only `cli/address.py`'s resolution step calls back into the registry via `tools/common.py`, so no endpoint path is ever hard-coded here either. The response still goes through the same `response.py` envelope and the same `safety.py` redactor as every other tool; there is no second response contract.
+
+## Why 26 read tools, not 18 or 308
 
 ### Not 308
 
@@ -95,4 +120,6 @@ The selected surface keeps high-use intents easy to discover while the expert ca
 
 ## Mutation boundary
 
-All 26 tools are read-only. The API executor is read-only — no controller mutation endpoint is present in the source registry used here. `generate_site_config` does not touch the filesystem or call a Prisma mutation API either; it validates one site's device list against the `prisma_sdwan.sites` schema and returns the structured config plus formatted YAML text to the caller. Turning that into a real file, combining it with other sites, and applying it to the network is entirely up to whatever consumes this server — this keeps Ansible/change-control as the network mutation path, and keeps this server from holding any state of its own between calls.
+26 of the 27 tools are read-only. The API executor is read-only — no controller mutation endpoint is present in the source registry used here. `generate_site_config` does not touch the filesystem or call a Prisma mutation API either; it validates one site's device list against the `prisma_sdwan.sites` schema and returns the structured config plus formatted YAML text to the caller. Turning that into a real file, combining it with other sites, and applying it to the network is entirely up to whatever consumes this server — this keeps Ansible/change-control as the network mutation path, and keeps this server from holding any state of its own between calls.
+
+`run_commands` is the exception to the *read-only claim*, not to the mutation boundary: it can send `ping`/`tcpping`/`dig` packets from the device, so it is annotated `ACTIVE_DIAGNOSTIC` rather than `READ_ONLY`. It still calls no controller write endpoint, changes no device configuration, and the server still holds no session or device state between calls — see the ION CLI lane above.
