@@ -57,6 +57,22 @@ _DEVICE_ERROR = re.compile(
 )
 
 
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def _normalise_prompt(raw: object) -> str | None:
+    """Reduce a device prompt to the text that actually appears in an echo.
+
+    An ION returns 'AEDXB01-SDE01#  \\x08' from find_prompt() -- trailing
+    spaces and a backspace. str.strip() does not remove the backspace, because
+    it is not whitespace, so a containment test against the echoed line
+    'AEDXB01-SDE01# dump ...' silently never matched and the echo was treated
+    as the device's answer. Strip control characters first, then whitespace.
+    """
+    text = _CONTROL_CHARS.sub("", str(raw or "")).strip()
+    return text or None
+
+
 def _is_device_error(output: str, prompt: str | None = None) -> bool:
     """Decide whether the device rejected the command.
 
@@ -339,7 +355,7 @@ def _command_result(
     # Per command, so one oversized command cannot starve its batch siblings.
     output, total_bytes, truncated = _truncate_output(output, max_output_bytes)
     try:
-        device_prompt = str(connection.find_prompt()).strip() or None
+        device_prompt = _normalise_prompt(connection.find_prompt())
     except Exception:  # noqa: BLE001 — a missing prompt only costs echo-skipping
         device_prompt = None
     if _is_device_error(output, device_prompt):

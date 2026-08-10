@@ -713,3 +713,35 @@ def test_the_real_connection_strips_ansi_escape_codes(monkeypatch):
     connection = ssh_module._default_connection_factory(host="10.0.0.1")
 
     assert connection.ansi_escape_codes is True
+
+
+def test_prompt_normalisation_strips_the_trailing_control_bytes():
+    """find_prompt() on an ION returns 'AEDXB01-SDE01#  \x08'. str.strip()
+    leaves the backspace, so `prompt in echoed_line` never matched and the
+    echo was read as the device's answer. Found on the fourth live run, after
+    the first fix for this had already shipped."""
+    from prisma_sdwan_mcp.cli.ssh import _normalise_prompt
+
+    assert _normalise_prompt("AEDXB01-SDE01#  \x08") == "AEDXB01-SDE01#"
+    assert _normalise_prompt("\x1b[31mION#\x1b[0m ") == "[31mION#[0m"
+    assert _normalise_prompt("") is None
+    assert _normalise_prompt(None) is None
+
+
+def test_end_to_end_rejection_with_the_real_prompt_and_real_output():
+    from prisma_sdwan_mcp.cli.ssh import _is_device_error, _normalise_prompt
+
+    prompt = _normalise_prompt("AEDXB01-SDE01#  \x08")
+    rejection = (
+        "AEDXB01-SDE01# dump zzprobenosuchsubcommand\n"
+        "AEDXB01-SDE01# dump zzprobenosuchsubcommand\n"
+        "unknown keyword “zzprobenosuchsubcommand”\n"
+    )
+    success = (
+        "AEDXB01-SDE01# dump overview\n"
+        "AEDXB01-SDE01# dump overview\n"
+        "Software\t\t: 6.3.6-b9\n"
+    )
+
+    assert _is_device_error(rejection, prompt) is True
+    assert _is_device_error(success, prompt) is False

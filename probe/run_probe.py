@@ -427,8 +427,27 @@ def probe_direct(host: str, port: int) -> None:
     captured: list[dict] = []
     try:
         prompt = str(connection.find_prompt())
+        # The two named commands, the rejection, and a sweep of everything else
+        # that plausibly carries configuration. G1 needs output containing a
+        # secret to be settled at all, and `dump overview` / `dump interface
+        # status all` carry none -- an ION is controller-managed, so its
+        # configuration may simply never appear on the device CLI. Sampling
+        # broadly is what turns "we did not happen to find one" into a
+        # defensible answer. All are policy-permitted and read-only; anything
+        # this firmware does not know just returns "unknown keyword", which is
+        # itself more G3 evidence.
+        sweep = (
+            ("cfg", "dump config"),
+            ("vpn", "dump vpn"),
+            ("system", "inspect system"),
+            ("snmp", "dump snmp"),
+            ("users", "dump users"),
+            ("auth", "dump authentication"),
+            ("ipsec", "dump ipsec"),
+            ("controller", "dump controller"),
+        )
         for label, command in (("small", CMD_SMALL), ("large", CMD_LARGE),
-                               ("rejected", CMD_REJECTED)):
+                               ("rejected", CMD_REJECTED), *sweep):
             started = time.time()
             try:
                 output = str(connection.send_command(command, read_timeout=120))
@@ -755,7 +774,19 @@ def probe_error_detection(host: str) -> None:
 # ---------------------------------------------------------------------------
 @detector("G4", "truncation_and_caps")
 def probe_truncation(host: str) -> None:
-    response = call_run_commands(host=host, commands=[CMD_LARGE])
+    # The large command produced ~11 KB against a 40 KB cap, so truncation was
+    # never actually exercised -- the check reported "proven" having tested
+    # nothing. Lower the cap below the known output size so the path runs, then
+    # put it back. This is the probe's own configuration, not the device's.
+    previous = os.environ.get("PRISMA_ION_MAX_OUTPUT_BYTES")
+    os.environ["PRISMA_ION_MAX_OUTPUT_BYTES"] = "4096"
+    try:
+        response = call_run_commands(host=host, commands=[CMD_LARGE])
+    finally:
+        if previous is None:
+            os.environ.pop("PRISMA_ION_MAX_OUTPUT_BYTES", None)
+        else:
+            os.environ["PRISMA_ION_MAX_OUTPUT_BYTES"] = previous
     failure = tool_error(response)
     if failure:
         record("G4", "truncation_and_caps", "not_run", {
@@ -766,13 +797,21 @@ def probe_truncation(host: str) -> None:
     results = _results_of(response)
     entry = results[0] if results else {}
     output = entry.get("output", "")
-    record("G4", "truncation_and_caps", "proven", {
+    truncated = bool(entry.get("truncated"))
+    record("G4", "truncation_and_caps", "proven" if truncated else "inconclusive", {
         "command": CMD_LARGE,
+        "cap_applied_bytes": 4096,
         "result_fields": sorted(entry.keys()) if isinstance(entry, dict) else None,
         "output_bytes": len(output.encode("utf-8")),
+        "declared_truncated": truncated,
+        "declared_output_bytes": entry.get("output_bytes"),
+        "declared_output_bytes_total": entry.get("output_bytes_total"),
         "envelope_keys": sorted(response.keys()) if isinstance(response, dict) else None,
-        "note": "compare result_fields against what the caller needs to tell a truncated "
-                "answer from a whole one",
+        "verdict": ("Truncation fired and was declared; check that a caller can tell a cut "
+                    "answer from a whole one from these fields alone."
+                    if truncated else
+                    "Output fitted inside the lowered cap, so truncation still was not "
+                    "exercised. Lower the cap further or use a larger command."),
     })
 
 
