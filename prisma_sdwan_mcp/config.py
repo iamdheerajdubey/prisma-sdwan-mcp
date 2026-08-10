@@ -5,6 +5,22 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# Load the .env that sits beside the installed package's repository root, not
+# whatever happens to be under the current working directory. Bare
+# `load_dotenv()` searches upward from the CWD, so the same install picks up
+# different configuration -- or none at all -- depending on where it was
+# launched from: a systemd unit with its own WorkingDirectory, a probe run out
+# of /tmp, or `cd /` before starting the server all silently lose the file.
+# An explicit path behaves identically on Linux and Windows.
+#
+# Real environment variables still win: `override=False` is the default, so a
+# container's injected secrets are never overwritten by a stale checked-out
+# .env, and PRISMA_ENV_FILE redirects the lookup when one host serves several
+# configurations.
+_ENV_FILE = os.getenv("PRISMA_ENV_FILE") or (Path(__file__).resolve().parents[1] / ".env")
+load_dotenv(_ENV_FILE)
+# Keep the CWD-relative search as a fallback so an install laid out
+# differently (site-packages, a zipapp) still finds a .env placed next to it.
 load_dotenv()
 
 DEFAULT_CONTROLLER = "https://api.sase.paloaltonetworks.com"
@@ -81,6 +97,23 @@ def get_ion_credentials() -> tuple[str | None, str | None, str | None, str | Non
         os.getenv("PRISMA_ION_PRIVATE_KEY"),
         os.getenv("PRISMA_ION_PRIVATE_KEY_PASSPHRASE"),
     )
+
+
+def get_ion_known_hosts() -> str | None:
+    """Path to the known_hosts file used to verify ION host keys.
+
+    Unset means "use the SSH client's own default", which is
+    ``~/.ssh/known_hosts`` on both Linux and Windows -- paramiko expands the
+    home directory per-platform, so no path is hard-coded either way.
+
+    Setting it explicitly is what makes a container or a fresh server usable:
+    there is no first-use trust, so without a readable known_hosts listing the
+    device, every connection fails and the only remedy would be an interactive
+    ``ssh`` login as the same OS user. ``~`` is expanded here because the SSH
+    layer is handed a plain path and does not expand it itself.
+    """
+    value = (os.getenv("PRISMA_ION_KNOWN_HOSTS") or "").strip()
+    return os.path.expanduser(value) if value else None
 
 
 def get_ion_ssh_port() -> int:

@@ -9,6 +9,7 @@ from ..cli.ssh import execute_commands
 from ..config import (
     get_ion_connect_timeout,
     get_ion_credentials,
+    get_ion_known_hosts,
     get_ion_max_output_bytes,
     get_ion_probe_timeout,
     get_ion_read_timeout,
@@ -211,7 +212,7 @@ def run_commands(
         private_key_passphrase=eff_passphrase,
         connect_timeout=get_ion_connect_timeout(),
         read_timeout=get_ion_read_timeout(),
-        known_hosts_file=known_hosts_file,
+        known_hosts_file=known_hosts_file or get_ion_known_hosts(),
         max_output_bytes=per_command_cap,
         probe_timeout=get_ion_probe_timeout(),
     )
