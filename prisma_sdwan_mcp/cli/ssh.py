@@ -8,6 +8,7 @@ import socket
 from typing import Any, Callable
 
 from ..config import get_ion_max_output_bytes
+from .redact import redact_text
 
 
 DEFAULT_CONNECT_TIMEOUT = 10.0
@@ -372,11 +373,21 @@ def _command_result(
         device_prompt = _normalise_prompt(connection.find_prompt())
     except Exception:  # noqa: BLE001 — a missing prompt only costs echo-skipping
         device_prompt = None
-    if _is_device_error(output, device_prompt):
+    failed = _is_device_error(output, device_prompt)
+    # Redact after truncation and after classification, so neither decision is
+    # made on rewritten text, and before anything is returned. safety.py cannot
+    # help here: it redacts by dict key, and this is one text blob under the
+    # key "output", so it descends to the string and returns it untouched.
+    output, redacted = redact_text(output)
+    if failed:
         result: dict[str, Any] = {"command": command, "status": "error", "error": output}
     else:
         result = {"command": command, "status": "ok", "output": output}
     result["truncated"] = truncated
+    if redacted:
+        # Say so, or a fully redacted line is indistinguishable from output the
+        # device never produced.
+        result["redacted"] = True
     if truncated:
         result["output_bytes"] = len(output.encode("utf-8"))
         result["output_bytes_total"] = total_bytes
