@@ -643,3 +643,73 @@ def test_without_a_known_hosts_file_the_system_default_is_used():
     assert kwargs["system_host_keys"] is True
     assert "alt_key_file" not in kwargs
     assert kwargs["ssh_strict"] is True
+
+
+# ---------------------------------------------------------------------------
+# Captured verbatim from a live ion 1200-s-c5g-ww running 6.3.6-b9
+# (probe/results/20260810T093714Z). The device echoes the prompt and the
+# command TWICE before saying what was wrong, so reading literally the first
+# line inspects the echo and reports a rejected command as successful.
+# ---------------------------------------------------------------------------
+REAL_ION_REJECTION = (
+    "AEDXB01-SDE01# dump zzprobenosuchsubcommand\n"
+    "AEDXB01-SDE01# dump zzprobenosuchsubcommand\n"
+    "unknown keyword «zzprobenosuchsubcommand»\n"
+)
+REAL_ION_PROMPT = "AEDXB01-SDE01#"
+
+
+def test_a_real_ion_rejection_is_detected_past_the_echoed_prompt():
+    from prisma_sdwan_mcp.cli.ssh import _is_device_error
+
+    assert _is_device_error(REAL_ION_REJECTION, REAL_ION_PROMPT) is True
+
+
+def test_the_echo_alone_is_not_read_as_an_error():
+    from prisma_sdwan_mcp.cli.ssh import _is_device_error
+
+    good = (
+        "AEDXB01-SDE01# dump overview\n"
+        "AEDXB01-SDE01# dump overview\n"
+        "Software\t: 6.3.6-b9\n"
+        "Role\t: SPOKE\n"
+    )
+    assert _is_device_error(good, REAL_ION_PROMPT) is False
+
+
+def test_an_interior_failure_word_is_not_an_error():
+    """`dump` output carries counters like "Failed: 0" on interior lines. Only
+    the first line past the echo is examined, never the whole output."""
+    from prisma_sdwan_mcp.cli.ssh import _is_device_error
+
+    counters = (
+        "AEDXB01-SDE01# dump interface status all\n"
+        "Interface\t: lan1\n"
+        "Failed: 0\n"
+        "Errors: 0\n"
+    )
+    assert _is_device_error(counters, REAL_ION_PROMPT) is False
+
+
+def test_detection_still_works_without_a_known_prompt():
+    from prisma_sdwan_mcp.cli.ssh import _is_device_error
+
+    assert _is_device_error("unknown keyword «x»\n") is True
+    assert _is_device_error("Software: 6.3.6-b9\n") is False
+
+
+def test_the_real_connection_strips_ansi_escape_codes(monkeypatch):
+    """An ION colours its prompt, and the escape sequences made the completion
+    pattern match the command echo instead of the prompt after the output."""
+    import prisma_sdwan_mcp.cli.ssh as ssh_module
+
+    class FakeHandler:
+        def __init__(self, **kwargs):
+            self.ansi_escape_codes = False
+
+    monkeypatch.setattr(
+        "netmiko.ConnectHandler", lambda **kwargs: FakeHandler(**kwargs), raising=False
+    )
+    connection = ssh_module._default_connection_factory(host="10.0.0.1")
+
+    assert connection.ansi_escape_codes is True

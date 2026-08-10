@@ -338,6 +338,26 @@ def bootstrap_host_key(host: str, port: int) -> None:
 # ---------------------------------------------------------------------------
 # Tool invocation helper — drives the real MCP tool in-process
 # ---------------------------------------------------------------------------
+def _results_of(response: dict) -> list[dict]:
+    """Pull the per-command results out of the v2 envelope.
+
+    They live at run.results, not at the top level. Reading the wrong place
+    returned an empty list, which the detectors then reported as "the device
+    returned no output" -- a statement about the hardware invented from a
+    parsing mistake, on a run where the tool had in fact worked.
+    """
+    if not isinstance(response, dict):
+        return []
+    for candidate in (
+        (response.get("run") or {}).get("results"),
+        response.get("results"),
+        response.get("data"),
+    ):
+        if isinstance(candidate, list) and candidate:
+            return [item for item in candidate if isinstance(item, dict)]
+    return []
+
+
 def tool_error(response: dict) -> str | None:
     """Return the tool's error code, if the call failed before reaching the device.
 
@@ -474,10 +494,8 @@ def probe_redaction(host: str) -> None:
             return
 
         write(f"raw/{label}_response.json", json.dumps(response, indent=2))
-        results = response.get("results") or response.get("data") or []
-        output = ""
-        if isinstance(results, list) and results and isinstance(results[0], dict):
-            output = results[0].get("output") or results[0].get("stdout") or ""
+        results = _results_of(response)
+        output = results[0].get("output", "") if results else ""
         write(f"raw/{label}_output.txt", output)
 
         hits = scan_text(output)
@@ -666,9 +684,9 @@ def probe_error_detection(host: str) -> None:
         })
         return
 
-    results = response.get("results") or response.get("data") or []
-    entry = results[0] if isinstance(results, list) and results else {}
-    output = entry.get("output") or entry.get("stdout") or "" if isinstance(entry, dict) else ""
+    results = _results_of(response)
+    entry = results[0] if results else {}
+    output = entry.get("output") or entry.get("error") or ""
     write("raw/rejected_output.txt", output)
 
     lines = output.splitlines()
@@ -745,9 +763,9 @@ def probe_truncation(host: str) -> None:
             "note": "the call never reached the device",
         })
         return
-    results = response.get("results") or response.get("data") or []
-    entry = results[0] if isinstance(results, list) and results else {}
-    output = entry.get("output", "") if isinstance(entry, dict) else ""
+    results = _results_of(response)
+    entry = results[0] if results else {}
+    output = entry.get("output", "")
     record("G4", "truncation_and_caps", "proven", {
         "command": CMD_LARGE,
         "result_fields": sorted(entry.keys()) if isinstance(entry, dict) else None,
@@ -769,7 +787,7 @@ def probe_name_resolution(element: str | None) -> None:
         return
     started = time.time()
     response = call_run_commands(element=element, commands=[CMD_SMALL])
-    results = response.get("results") or response.get("data") or []
+    results = _results_of(response)
     record("G5", "name_resolution", "proven" if results else "inconclusive", {
         "element": element,
         "elapsed_s": round(time.time() - started, 2),

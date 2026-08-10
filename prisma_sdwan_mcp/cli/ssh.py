@@ -57,9 +57,37 @@ _DEVICE_ERROR = re.compile(
 )
 
 
-def _is_device_error(output: str) -> bool:
-    first_line = output.lstrip().split("\n", 1)[0]
-    return bool(_DEVICE_ERROR.match(first_line))
+def _is_device_error(output: str, prompt: str | None = None) -> bool:
+    """Decide whether the device rejected the command.
+
+    A real ION rejection does not start on the first line. It echoes the
+    prompt and the command first, twice, and only then says what was wrong::
+
+        AEDXB01-SDE01# dump zzznosuch
+        AEDXB01-SDE01# dump zzznosuch
+        unknown keyword <<zzznosuch>>
+
+    Reading literally the first line therefore inspects the echo, matches
+    nothing, and reports a rejected command as a successful one -- the same
+    failure Cisco IOS produced with a caret marker above its error. The
+    vocabulary below already contains "unknown"; the detector simply never
+    read far enough to see it.
+
+    Echo lines are skipped by prompt, not by counting: the prompt is the one
+    reliable marker of "this line is the device repeating itself", and a fixed
+    line count would be wrong on the next firmware. Beyond the echo, only the
+    first line that says something is examined -- deliberately not a search of
+    the whole output, because legitimate `dump` data contains words like
+    "Failed: 0" on interior lines without the command having failed.
+    """
+    for line in output.splitlines():
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if prompt and prompt in line:
+            continue  # the device echoing the prompt and the command back
+        return bool(_DEVICE_ERROR.match(stripped))
+    return False
 
 
 ConnectionFactory = Callable[..., Any]
@@ -108,7 +136,22 @@ def probe_reachable(host: str, port: int, timeout: float) -> None:
 def _default_connection_factory(**connection_kwargs: Any) -> Any:
     from netmiko import ConnectHandler
 
-    return ConnectHandler(**connection_kwargs)
+    connection = ConnectHandler(**connection_kwargs)
+    # An ION colours its prompt: find_prompt() returns
+    # '\x1b[31mAEDXB01-SDE01#\x1b[0m  \x08'. That string becomes the
+    # expect pattern that decides when a command has finished, and the escape
+    # sequences make it match against the command echo instead of the prompt
+    # that follows the output -- so send_command returned the echo and stopped,
+    # reporting status "ok" with the real answer never read. A caller received
+    # its own command back as the device's reply.
+    #
+    # netmiko strips these itself when the flag is set (base_connection reads
+    # `if self.ansi_escape_codes` on every channel read), but the "generic"
+    # driver leaves it False and it is not a constructor argument, so it has to
+    # be set on the instance. Fixes prompt matching and removes terminal
+    # control bytes from what reaches the model, in one place.
+    connection.ansi_escape_codes = True
+    return connection
 
 
 def _load_private_key(key_material: str, passphrase: str | None = None) -> Any:
@@ -295,7 +338,11 @@ def _command_result(
 
     # Per command, so one oversized command cannot starve its batch siblings.
     output, total_bytes, truncated = _truncate_output(output, max_output_bytes)
-    if _is_device_error(output):
+    try:
+        device_prompt = str(connection.find_prompt()).strip() or None
+    except Exception:  # noqa: BLE001 — a missing prompt only costs echo-skipping
+        device_prompt = None
+    if _is_device_error(output, device_prompt):
         result: dict[str, Any] = {"command": command, "status": "error", "error": output}
     else:
         result = {"command": command, "status": "ok", "output": output}
