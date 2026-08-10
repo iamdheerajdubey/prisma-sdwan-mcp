@@ -1,0 +1,217 @@
+{
+  "run_id": "20260810T104737Z",
+  "generated_utc": "2026-08-10T10:48:17.200242+00:00",
+  "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+  "target_host": "10.64.167.4",
+  "status_counts": {
+    "proven": 5,
+    "disproven": 1,
+    "inconclusive": 2,
+    "not_run": 2,
+    "crashed": 0
+  },
+  "findings": [
+    {
+      "gap": "G0",
+      "check": "environment",
+      "status": "proven",
+      "summary": "captured",
+      "file": "environment.json"
+    },
+    {
+      "gap": "G0",
+      "check": "ion_reachability",
+      "status": "proven",
+      "host": "10.64.167.4",
+      "port": 22,
+      "elapsed_s": 0.2,
+      "reachable": true
+    },
+    {
+      "gap": "G0",
+      "check": "host_key_bootstrap",
+      "status": "proven",
+      "host": "10.64.167.4",
+      "key_type": "ssh-ed25519",
+      "key_bits": 256,
+      "fingerprint": "SHA256:TiYojNvhul6GGfj8nF1FEoCCEX6pJTgEQ5LmwNWLQMw",
+      "written_to": "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/probe/results/20260810T104737Z/known_hosts",
+      "note": "recorded automatically, NOT verified out of band. This is what the run trusted; check it against the device if the results matter."
+    },
+    {
+      "gap": "G6",
+      "check": "direct_capture",
+      "status": "not_run",
+      "note": "ION_USERNAME/ION_PASSWORD not set"
+    },
+    {
+      "gap": "G1",
+      "check": "text_redaction",
+      "status": "inconclusive",
+      "verdict": "No candidate secrets in these two commands' output, so this run cannot prove or disprove the gap. The mechanism is still key-based; try a command whose output carries configuration.",
+      "commands": [
+        {
+          "label": "small",
+          "command": "dump overview",
+          "elapsed_s": 4.58,
+          "error": null,
+          "output_bytes": 1595,
+          "output_lines": 44,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "safety_redact_changed_anything": false,
+          "redacted_marker_count": 0,
+          "response_keys": [
+            "contract_version",
+            "per_command_output_cap_bytes",
+            "retrieved_at",
+            "run",
+            "summary",
+            "tool"
+          ]
+        },
+        {
+          "label": "large",
+          "command": "dump interface status all",
+          "elapsed_s": 3.72,
+          "error": null,
+          "output_bytes": 11564,
+          "output_lines": 438,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "safety_redact_changed_anything": false,
+          "redacted_marker_count": 0,
+          "response_keys": [
+            "contract_version",
+            "per_command_output_cap_bytes",
+            "retrieved_at",
+            "run",
+            "summary",
+            "tool"
+          ]
+        }
+      ]
+    },
+    {
+      "gap": "G3",
+      "check": "device_error_shape",
+      "status": "disproven",
+      "command": "dump zzprobenosuchsubcommand",
+      "verdict": "The device echoes the prompt and command above its error, and the tool still classified the command as failed. The echo-skipping fix holds on real output.",
+      "tool_reported_ok": "error",
+      "is_device_error_returned": true,
+      "line_count": 3,
+      "first_meaningful_line_index": 0,
+      "echo_above_the_error": true,
+      "first_lines_repr": [
+        {
+          "line_number": 1,
+          "repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand'",
+          "is_blank_or_marker": false
+        },
+        {
+          "line_number": 2,
+          "repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand'",
+          "is_blank_or_marker": false
+        },
+        {
+          "line_number": 3,
+          "repr": "'unknown keyword \u201czzprobenosuchsubcommand\u201d'",
+          "is_blank_or_marker": false
+        }
+      ],
+      "full_output_repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand\\nAEDXB01-SDE01# dump zzprobenosuchsubcommand\\nunknown keyword \u201czzprobenosuchsubcommand\u201d\\n'"
+    },
+    {
+      "gap": "G4",
+      "check": "truncation_and_caps",
+      "status": "proven",
+      "command": "dump interface status all",
+      "cap_applied_bytes": 4096,
+      "result_fields": [
+        "command",
+        "output",
+        "output_bytes",
+        "output_bytes_total",
+        "status",
+        "truncated"
+      ],
+      "output_bytes": 4074,
+      "declared_truncated": true,
+      "declared_output_bytes": 4074,
+      "declared_output_bytes_total": 11568,
+      "envelope_keys": [
+        "contract_version",
+        "per_command_output_cap_bytes",
+        "retrieved_at",
+        "run",
+        "summary",
+        "tool"
+      ],
+      "verdict": "Truncation fired and was declared; check that a caller can tell a cut answer from a whole one from these fields alone."
+    },
+    {
+      "gap": "G7",
+      "check": "read_stability",
+      "status": "not_run",
+      "command": "dump overview",
+      "tool_error": "device_connection_failed",
+      "message": "\nA paramiko SSHException occurred during connection creation:\n\nError reading SSH protocol banner[Errno 104] Connection reset by peer\n\n"
+    },
+    {
+      "gap": "G2",
+      "check": "unauthenticated_http",
+      "status": "proven",
+      "bound": "127.0.0.1:52045",
+      "reachable_from": "this machine only \u2014 deliberately not 0.0.0.0",
+      "auth_configured": false,
+      "server_started": true,
+      "connected_without_credentials": true,
+      "tools_visible": [
+        "find_element",
+        "find_resource",
+        "find_site",
+        "generate_site_config",
+        "get_cellular",
+        "get_device_diagnostics",
+        "get_device_health",
+        "get_identity",
+        "get_interfaces",
+        "get_inventory",
+        "get_ipfix",
+        "get_monitoring",
+        "get_multicast",
+        "get_network_services",
+        "get_platform",
+        "get_policies",
+        "get_prisma_access",
+        "get_routing",
+        "get_security",
+        "get_service_connections",
+        "get_software",
+        "get_topology",
+        "get_wan",
+        "list_capabilities",
+        "read_capability",
+        "resolve_path",
+        "run_commands"
+      ],
+      "run_commands_exposed": true,
+      "called_run_commands_anonymously": true,
+      "reached_the_ion": false,
+      "elapsed_s": 0.83,
+      "response_excerpt": "{\"result\": \"{\\\"code\\\":\\\"device_connection_failed\\\",\\\"message\\\":\\\"\\\\nA paramiko SSHException occurred during connection creation:\\\\n\\\\nError reading SSH protocol banner[Errno 104] Connection reset by peer\\\\n\\\\n\\\",\\\"tool\\\":\\\"run_commands\\\",\\\"retryable\\\":false,\\\"results\\\":[]}\"}",
+      "verdict": "An anonymous HTTP client listed run_commands with no authentication. The call did not reach the device in this run \u2014 see response_excerpt for why \u2014 but the tool is exposed unauthenticated regardless."
+    },
+    {
+      "gap": "G5",
+      "check": "name_resolution",
+      "status": "inconclusive",
+      "element": "AEDXB01-SDE01",
+      "elapsed_s": 2.75,
+      "error": "ambiguous_match",
+      "resolved": {},
+      "response_excerpt": "{\"code\": \"ambiguous_match\", \"message\": \"3 live 'lan' addresses found for element 'AEDXB01-SDE01'; specify host explicitly to choose one\", \"tool\": \"run_commands\", \"retryable\": false, \"status_code\": 409, \"candidates\": [{\"interface_id\": \"1743812095506007996\", \"interface_name\": \"4.300\", \"used_for\": \"lan\", \"address\": \"10.64.167.4\", \"operational_state\": \"up\"}, {\"interface_id\": \"1743812165245019496\", \"interface_name\": \"4.600\", \"used_for\": \"lan\", \"address\": \"100.65.96.1\", \"operational_state\": \"up\"}, {\"interface_id\": \"1743812207328009496\", \"interface_name\": \"4.601\", \"used_for\": \"lan\", \"address\": \"100.81.96.1\", \"operational_state\": \"up\"}], \"results\": []}"
+    }
+  ]
+}

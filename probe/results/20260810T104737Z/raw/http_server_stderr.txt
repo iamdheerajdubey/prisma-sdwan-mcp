@@ -1,0 +1,29 @@
+Prisma SD-WAN MCP v2 (streamable-http) - 308 registry actions + 8 curated compatibility actions
+[08/10/26 10:48:13] INFO     Starting MCP server 'Prisma SD-WAN MCP v2' with transport 'streamable-http' on http://127.0.0.1:52045/mcp transport.py:361
+INFO:     Started server process [1562560]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:52045 (Press CTRL+C to quit)
+Exception (client): Error reading SSH protocol banner[Errno 104] Connection reset by peer
+Traceback (most recent call last):
+  File "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/.venv/lib/python3.10/site-packages/paramiko/transport.py", line 2363, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/.venv/lib/python3.10/site-packages/paramiko/packet.py", line 395, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/.venv/lib/python3.10/site-packages/paramiko/packet.py", line 663, in _read_timeout
+    x = self.__socket.recv(128)
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/.venv/lib/python3.10/site-packages/paramiko/transport.py", line 2179, in run
+    self._check_banner()
+  File "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/.venv/lib/python3.10/site-packages/paramiko/transport.py", line 2367, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner[Errno 104] Connection reset by peer
+
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1562560]
