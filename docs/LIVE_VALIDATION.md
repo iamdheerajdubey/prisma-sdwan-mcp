@@ -29,7 +29,7 @@ The build environment did not have `fastmcp` or `prisma_sase` installed and did 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements-dev.txt
+pip install -r requirements.txt
 pip install -e .
 PYTHONPATH=. pytest -q
 ```

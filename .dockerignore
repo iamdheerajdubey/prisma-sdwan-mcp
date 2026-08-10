@@ -9,6 +9,5 @@ docs/
 openspec/
 .claude/
 requirements.txt
-requirements-dev.txt
 README.md
 CLAUDE.md
