@@ -50,29 +50,22 @@ def _policy_denied(tool: str, decision) -> str:
     )
 
 
-def _effective_credentials(
-    username: Optional[str],
-    password: Optional[str],
-    private_key: Optional[str],
-    private_key_passphrase: Optional[str],
-) -> tuple[str, str | None, str | None, str | None] | str:
-    """Return (username, password, private_key, passphrase) or an error_json code string.
+def _configured_credentials() -> tuple[str, str | None, str | None, str | None] | str:
+    """Return (username, password, private_key, passphrase), or "config" on error.
 
-    Supplying any per-call credential argument switches the whole credential
-    set to this call's arguments instead of the environment -- there is no
-    partial merge between the two sources.
+    One source, deliberately. There used to be a second -- per-call tool
+    arguments -- and the two had to agree about what "not set" meant. They did
+    not: a .env writes `ION_PRIVATE_KEY=`, os.getenv returns '' rather than
+    None, and the "exactly one of password or key" test read that blank as a
+    configured key and refused a perfectly good password. Every deployment that
+    copied .env.example hit it. Removing the second source removes the class of
+    bug, and keeps credentials out of the tool schema where a model could see
+    them.
     """
-    per_call = any(v is not None for v in (username, password, private_key, private_key_passphrase))
-    if per_call:
-        eff_username, eff_password, eff_private_key, eff_passphrase = username, password, private_key, private_key_passphrase
-        source = "call"
-    else:
-        eff_username, eff_password, eff_private_key, eff_passphrase = get_ion_credentials()
-        source = "config"
-
-    if not eff_username or (eff_password is None) == (eff_private_key is None):
-        return source
-    return (eff_username, eff_password, eff_private_key, eff_passphrase)
+    username, password, private_key, passphrase = get_ion_credentials()
+    if not username or (password is None) == (private_key is None):
+        return "config"
+    return (username, password, private_key, passphrase)
 
 
 @mcp.tool(annotations=ACTIVE_DIAGNOSTIC)
@@ -81,12 +74,6 @@ def run_commands(
     element: Optional[str] = None,
     host: Optional[str] = None,
     site: Optional[str] = None,
-    port: Optional[int] = None,
-    username: Optional[str] = None,
-    password: Optional[str] = None,
-    private_key: Optional[str] = None,
-    private_key_passphrase: Optional[str] = None,
-    known_hosts_file: Optional[str] = None,
 ) -> str:
     """Run a batch of policy-approved commands on one Prisma SD-WAN ION over SSH.
 
@@ -118,26 +105,15 @@ def run_commands(
             the response, and nothing is resolved or cross-checked.
         site: Optional site name/ID to disambiguate `element`, as in every
             other semantic tool. Ignored when `host` is given.
-        port: SSH port. Defaults to the server's configured ION SSH port
-            (PRISMA_ION_SSH_PORT, default 22).
-        username: Overrides the configured PRISMA_ION_USERNAME for this
-            call only. Supplying any of username/password/private_key/
-            private_key_passphrase switches the whole credential set to
-            this call's arguments instead of the environment.
-        password: Per-call password override. Exactly one of password or
-            private_key is required when overriding.
-        private_key: Per-call inline PEM private key override.
-        private_key_passphrase: Passphrase for `private_key`, if any.
-        known_hosts_file: Optional alternate known_hosts path. SSH host-key
-            checking is always strict -- an unknown or mismatched key fails
-            the call before credentials are sent, with error code
-            `host_key_unverified`.
 
-    Credentials normally come from PRISMA_ION_USERNAME / PRISMA_ION_PASSWORD /
-    PRISMA_ION_PRIVATE_KEY / PRISMA_ION_PRIVATE_KEY_PASSPHRASE, never from a
-    tool argument that would land in the conversation transcript. If none
-    are configured and none are supplied per call, the call fails closed
-    with `configuration_error` before any resolution, probe, or connection.
+    Credentials, SSH port and known_hosts path come from the server's
+    configuration only -- ION_USERNAME, ION_PASSWORD (or ION_PRIVATE_KEY),
+    ION_SSH_PORT, ION_KNOWN_HOSTS. There is deliberately no per-call override:
+    a tool argument is visible to the model and lands in the conversation
+    transcript, which is normally logged. With nothing configured the call
+    fails closed with `configuration_error` before any resolution, probe or
+    connection. Host-key checking is always strict -- an unknown or mismatched
+    key fails before credentials are sent, as `host_key_unverified`.
 
     Each command's output is capped independently (the server's configured
     cap divided across the batch, floored), and every result declares
@@ -154,23 +130,15 @@ def run_commands(
         return _policy_denied(tool, policy_decision)
 
     # 2. Credential availability, before any resolution call.
-    credentials = _effective_credentials(username, password, private_key, private_key_passphrase)
+    credentials = _configured_credentials()
     if isinstance(credentials, str):
-        if credentials == "config":
-            return error_json(
-                "configuration_error",
-                "ION SSH credentials are not configured: set PRISMA_ION_USERNAME and exactly one of "
-                "PRISMA_ION_PASSWORD or PRISMA_ION_PRIVATE_KEY, or supply them for this call",
-                tool,
-                400,
-                {"missing_setting": "PRISMA_ION_USERNAME/PRISMA_ION_PASSWORD/PRISMA_ION_PRIVATE_KEY", "results": []},
-            )
         return error_json(
-            "invalid_argument",
-            "username is required, and exactly one of password or private_key",
+            "configuration_error",
+            "ION SSH credentials are not configured: set ION_USERNAME and exactly one of "
+            "ION_PASSWORD or ION_PRIVATE_KEY",
             tool,
             400,
-            {"results": []},
+            {"missing_setting": "ION_USERNAME/ION_PASSWORD/ION_PRIVATE_KEY", "results": []},
         )
     eff_username, eff_password, eff_private_key, eff_passphrase = credentials
 
@@ -180,7 +148,7 @@ def run_commands(
     # cannot see. Name resolution runs only when no host was given.
     if not element and not host:
         return error_json("invalid_argument", "provide element or host", tool, 400)
-    resolved_port = port or get_ion_ssh_port()
+    resolved_port = get_ion_ssh_port()
     if host:
         resolved_host = host
         element_name = element
@@ -212,7 +180,7 @@ def run_commands(
         private_key_passphrase=eff_passphrase,
         connect_timeout=get_ion_connect_timeout(),
         read_timeout=get_ion_read_timeout(),
-        known_hosts_file=known_hosts_file or get_ion_known_hosts(),
+        known_hosts_file=get_ion_known_hosts(),
         max_output_bytes=per_command_cap,
         probe_timeout=get_ion_probe_timeout(),
     )

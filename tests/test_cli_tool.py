@@ -149,14 +149,16 @@ def test_batch_level_ssh_failures_map_to_the_right_code_with_empty_results(monke
 
 
 def test_unreachable_error_names_the_host_and_port_tried(monkeypatch):
+    # The port comes from configuration now, not a tool argument.
     monkeypatch.setattr(cli, "get_ion_credentials", lambda: VALID_CREDENTIALS)
+    monkeypatch.setattr(cli, "get_ion_ssh_port", lambda: 2222)
     monkeypatch.setattr(
         cli,
         "execute_commands",
         lambda **kwargs: {"status": "error", "error": {"type": "unreachable", "message": "no route"}, "results": []},
     )
 
-    response = json.loads(cli.run_commands(commands=["dump interface status all"], host="10.0.0.9", port=2222))
+    response = json.loads(cli.run_commands(commands=["dump interface status all"], host="10.0.0.9"))
 
     assert response["host"] == "10.0.0.9"
     assert response["port"] == 2222
@@ -275,35 +277,49 @@ def test_blank_private_key_in_env_does_not_block_password_auth(monkeypatch):
 
     Found by probe/run_probe.py against a live ION on 2026-08-10.
     """
-    from prisma_sdwan_mcp.tools.cli import _effective_credentials
+    from prisma_sdwan_mcp.tools.cli import _configured_credentials
 
     monkeypatch.setenv("PRISMA_ION_USERNAME", "admin")
     monkeypatch.setenv("PRISMA_ION_PASSWORD", "secret")
     monkeypatch.setenv("PRISMA_ION_PRIVATE_KEY", "")
     monkeypatch.setenv("PRISMA_ION_PRIVATE_KEY_PASSPHRASE", "")
 
-    result = _effective_credentials(None, None, None, None)
+    result = _configured_credentials()
 
     assert not isinstance(result, str), "blank private key must not read as configured"
     assert result == ("admin", "secret", None, None)
 
 
 def test_whitespace_only_credential_is_also_absent(monkeypatch):
-    from prisma_sdwan_mcp.tools.cli import _effective_credentials
+    from prisma_sdwan_mcp.tools.cli import _configured_credentials
 
     monkeypatch.setenv("PRISMA_ION_USERNAME", "admin")
     monkeypatch.setenv("PRISMA_ION_PASSWORD", "secret")
     monkeypatch.setenv("PRISMA_ION_PRIVATE_KEY", "   ")
 
-    assert _effective_credentials(None, None, None, None) == ("admin", "secret", None, None)
+    assert _configured_credentials() == ("admin", "secret", None, None)
 
 
 def test_both_credentials_genuinely_set_is_still_refused(monkeypatch):
     # The fix must not weaken the real check it was protecting.
-    from prisma_sdwan_mcp.tools.cli import _effective_credentials
+    from prisma_sdwan_mcp.tools.cli import _configured_credentials
 
     monkeypatch.setenv("PRISMA_ION_USERNAME", "admin")
     monkeypatch.setenv("PRISMA_ION_PASSWORD", "secret")
     monkeypatch.setenv("PRISMA_ION_PRIVATE_KEY", "/keys/id_ed25519")
 
-    assert _effective_credentials(None, None, None, None) == "config"
+    assert _configured_credentials() == "config"
+
+
+def test_credentials_are_not_in_the_tool_schema(monkeypatch):
+    """A credential accepted as a tool argument is visible to the model and
+    lands in the conversation transcript. There is one source now, and it is
+    the environment."""
+    import inspect
+
+    params = set(inspect.signature(cli.run_commands).parameters)
+
+    assert params == {"commands", "element", "host", "site"}
+    for leaked in ("username", "password", "private_key", "private_key_passphrase",
+                   "known_hosts_file", "port"):
+        assert leaked not in params, f"{leaked} must not be a tool argument"
