@@ -1,0 +1,430 @@
+{
+  "run_id": "20260810T105544Z",
+  "generated_utc": "2026-08-10T10:56:43.195760+00:00",
+  "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+  "target_host": "10.64.167.4",
+  "status_counts": {
+    "proven": 7,
+    "disproven": 1,
+    "inconclusive": 2,
+    "not_run": 0,
+    "crashed": 0
+  },
+  "findings": [
+    {
+      "gap": "G0",
+      "check": "environment",
+      "status": "proven",
+      "summary": "captured",
+      "file": "environment.json"
+    },
+    {
+      "gap": "G0",
+      "check": "ion_reachability",
+      "status": "proven",
+      "host": "10.64.167.4",
+      "port": 22,
+      "elapsed_s": 0.2,
+      "reachable": true
+    },
+    {
+      "gap": "G0",
+      "check": "host_key_bootstrap",
+      "status": "proven",
+      "host": "10.64.167.4",
+      "key_type": "ssh-ed25519",
+      "key_bits": 256,
+      "fingerprint": "SHA256:TiYojNvhul6GGfj8nF1FEoCCEX6pJTgEQ5LmwNWLQMw",
+      "written_to": "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/probe/results/20260810T105544Z/known_hosts",
+      "note": "recorded automatically, NOT verified out of band. This is what the run trusted; check it against the device if the results matter."
+    },
+    {
+      "gap": "G6",
+      "check": "direct_capture",
+      "status": "proven",
+      "prompt_repr": "'Controller. If you configure using the toolkit command, this may result in'",
+      "note": "captured without any of this project's code in the path; use it to answer G1/G3 even when the MCP tool failed",
+      "commands": [
+        {
+          "label": "small",
+          "command": "dump overview",
+          "elapsed_s": 0.93,
+          "error": null,
+          "bytes": 1626,
+          "lines": 45,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump overview\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump overview'",
+            "'Software\\t\\t\\t: 6.3.6-b9'",
+            "'Hardware Model\\t\\t\\t: ion 1200-s-c5g-ww'",
+            "'Hardware Version\\t\\t: 1.1'",
+            "'Time Now\\t\\t\\t: 2026-08-10 10:55:49'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "large",
+          "command": "dump interface status all",
+          "elapsed_s": 0.89,
+          "error": null,
+          "bytes": 11598,
+          "lines": 439,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump interface status all\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump interface status all'",
+            "'Interface\\t\\t: cellular1 '",
+            "'Device\\t\\t\\t: cellular1 '",
+            "'ID\\t\\t\\t: 1743451518242010696 '",
+            "'Active Cellular Link\\t: True'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "rejected",
+          "command": "dump zzprobenosuchsubcommand",
+          "elapsed_s": 0.62,
+          "error": null,
+          "bytes": 166,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump zzprobenosuchsubcommand\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump zzprobenosuchsubcommand'",
+            "'unknown keyword \u201czzprobenosuchsubcommand\u201d'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "cfg",
+          "command": "dump config",
+          "elapsed_s": 0.63,
+          "error": null,
+          "bytes": 105,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump config\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump config'",
+            "'incomplete command'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "vpn",
+          "command": "dump vpn",
+          "elapsed_s": 0.63,
+          "error": null,
+          "bytes": 99,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump vpn\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump vpn'",
+            "'incomplete command'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "system",
+          "command": "inspect system",
+          "elapsed_s": 0.63,
+          "error": null,
+          "bytes": 111,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m inspect system\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m inspect system'",
+            "'incomplete command'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "snmp",
+          "command": "dump snmp",
+          "elapsed_s": 0.62,
+          "error": null,
+          "bytes": 109,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump snmp\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump snmp'",
+            "'unknown keyword \u201csnmp\u201d'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "users",
+          "command": "dump users",
+          "elapsed_s": 0.63,
+          "error": null,
+          "bytes": 112,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump users\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump users'",
+            "'unknown keyword \u201cusers\u201d'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "auth",
+          "command": "dump authentication",
+          "elapsed_s": 0.62,
+          "error": null,
+          "bytes": 139,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump authentication\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump authentication'",
+            "'unknown keyword \u201cauthentication\u201d'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "ipsec",
+          "command": "dump ipsec",
+          "elapsed_s": 0.63,
+          "error": null,
+          "bytes": 112,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump ipsec\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump ipsec'",
+            "'unknown keyword \u201cipsec\u201d'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "controller",
+          "command": "dump controller",
+          "elapsed_s": 0.62,
+          "error": null,
+          "bytes": 113,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump controller\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump controller'",
+            "'incomplete command'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        }
+      ]
+    },
+    {
+      "gap": "G1",
+      "check": "text_redaction",
+      "status": "inconclusive",
+      "verdict": "No candidate secrets in these two commands' output, so this run cannot prove or disprove the gap. The mechanism is still key-based; try a command whose output carries configuration.",
+      "commands": [
+        {
+          "label": "small",
+          "command": "dump overview",
+          "elapsed_s": 4.35,
+          "error": null,
+          "output_bytes": 1595,
+          "output_lines": 44,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "safety_redact_changed_anything": false,
+          "redacted_marker_count": 0,
+          "response_keys": [
+            "contract_version",
+            "per_command_output_cap_bytes",
+            "retrieved_at",
+            "run",
+            "summary",
+            "tool"
+          ]
+        },
+        {
+          "label": "large",
+          "command": "dump interface status all",
+          "elapsed_s": 3.94,
+          "error": null,
+          "output_bytes": 11569,
+          "output_lines": 438,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "safety_redact_changed_anything": false,
+          "redacted_marker_count": 0,
+          "response_keys": [
+            "contract_version",
+            "per_command_output_cap_bytes",
+            "retrieved_at",
+            "run",
+            "summary",
+            "tool"
+          ]
+        }
+      ]
+    },
+    {
+      "gap": "G3",
+      "check": "device_error_shape",
+      "status": "disproven",
+      "command": "dump zzprobenosuchsubcommand",
+      "verdict": "The device echoes the prompt and command above its error, and the tool still classified the command as failed. The echo-skipping fix holds on real output.",
+      "tool_reported_ok": "error",
+      "is_device_error_returned": true,
+      "line_count": 3,
+      "first_meaningful_line_index": 0,
+      "echo_above_the_error": true,
+      "first_lines_repr": [
+        {
+          "line_number": 1,
+          "repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand'",
+          "is_blank_or_marker": false
+        },
+        {
+          "line_number": 2,
+          "repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand'",
+          "is_blank_or_marker": false
+        },
+        {
+          "line_number": 3,
+          "repr": "'unknown keyword \u201czzprobenosuchsubcommand\u201d'",
+          "is_blank_or_marker": false
+        }
+      ],
+      "full_output_repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand\\nAEDXB01-SDE01# dump zzprobenosuchsubcommand\\nunknown keyword \u201czzprobenosuchsubcommand\u201d\\n'"
+    },
+    {
+      "gap": "G4",
+      "check": "truncation_and_caps",
+      "status": "proven",
+      "command": "dump interface status all",
+      "cap_applied_bytes": 4096,
+      "result_fields": [
+        "command",
+        "output",
+        "output_bytes",
+        "output_bytes_total",
+        "status",
+        "truncated"
+      ],
+      "output_bytes": 4076,
+      "declared_truncated": true,
+      "declared_output_bytes": 4076,
+      "declared_output_bytes_total": 11573,
+      "envelope_keys": [
+        "contract_version",
+        "per_command_output_cap_bytes",
+        "retrieved_at",
+        "run",
+        "summary",
+        "tool"
+      ],
+      "verdict": "Truncation fired and was declared; check that a caller can tell a cut answer from a whole one from these fields alone."
+    },
+    {
+      "gap": "G7",
+      "check": "read_stability",
+      "status": "proven",
+      "command": "dump overview",
+      "attempt": 5,
+      "sizes_before_failure": [
+        1595,
+        1594,
+        1594,
+        1594
+      ],
+      "tool_error": "device_connection_failed",
+      "message": "\nA paramiko SSHException occurred during connection creation:\n\nError reading SSH protocol banner[Errno 104] Connection reset by peer\n\n",
+      "verdict": "The device refused a repeated SSH connection. A session is opened per call, so an assistant making several calls in quick succession will hit this. The tool should report it as a device-side rate limit rather than a generic connection failure."
+    },
+    {
+      "gap": "G2",
+      "check": "unauthenticated_http",
+      "status": "proven",
+      "bound": "127.0.0.1:51813",
+      "reachable_from": "this machine only \u2014 deliberately not 0.0.0.0",
+      "auth_configured": false,
+      "server_started": true,
+      "connected_without_credentials": true,
+      "tools_visible": [
+        "find_element",
+        "find_resource",
+        "find_site",
+        "generate_site_config",
+        "get_cellular",
+        "get_device_diagnostics",
+        "get_device_health",
+        "get_identity",
+        "get_interfaces",
+        "get_inventory",
+        "get_ipfix",
+        "get_monitoring",
+        "get_multicast",
+        "get_network_services",
+        "get_platform",
+        "get_policies",
+        "get_prisma_access",
+        "get_routing",
+        "get_security",
+        "get_service_connections",
+        "get_software",
+        "get_topology",
+        "get_wan",
+        "list_capabilities",
+        "read_capability",
+        "resolve_path",
+        "run_commands"
+      ],
+      "run_commands_exposed": true,
+      "called_run_commands_anonymously": true,
+      "reached_the_ion": false,
+      "elapsed_s": 0.88,
+      "response_excerpt": "{\"result\": \"{\\\"code\\\":\\\"device_connection_failed\\\",\\\"message\\\":\\\"\\\\nA paramiko SSHException occurred during connection creation:\\\\n\\\\nError reading SSH protocol banner[Errno 104] Connection reset by peer\\\\n\\\\n\\\",\\\"tool\\\":\\\"run_commands\\\",\\\"retryable\\\":false,\\\"results\\\":[]}\"}",
+      "verdict": "An anonymous HTTP client listed run_commands with no authentication. The call did not reach the device in this run \u2014 see response_excerpt for why \u2014 but the tool is exposed unauthenticated regardless."
+    },
+    {
+      "gap": "G5",
+      "check": "name_resolution",
+      "status": "inconclusive",
+      "element": "AEDXB01-SDE01",
+      "elapsed_s": 3.11,
+      "error": "device_connection_failed",
+      "resolved": {},
+      "response_excerpt": "{\"code\": \"device_connection_failed\", \"message\": \"\\nA paramiko SSHException occurred during connection creation:\\n\\nError reading SSH protocol banner[Errno 104] Connection reset by peer\\n\\n\", \"tool\": \"run_commands\", \"retryable\": false, \"results\": []}"
+    }
+  ]
+}

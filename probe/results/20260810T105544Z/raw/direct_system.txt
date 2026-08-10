@@ -1,0 +1,4 @@
+[31mAEDXB01-SDE01#[0m inspect system[J[2K
+[31mAEDXB01-SDE01#[0m inspect system
+incomplete command
+[J[2K
