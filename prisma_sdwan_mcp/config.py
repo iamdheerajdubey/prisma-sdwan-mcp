@@ -90,6 +90,16 @@ def data_dir() -> Path:
     return Path(__file__).resolve().parent / "data"
 
 
+def _pick(short: str, long: str) -> str:
+    """Name of whichever spelling is set, short first.
+
+    The variables were originally PRISMA_ION_*. The short forms are what an
+    operator writes and what the docs list; the long ones keep working so an
+    existing deployment is not broken by the rename.
+    """
+    return short if (os.getenv(short) or "").strip() else long
+
+
 def _unset(name: str) -> str | None:
     """Read an env var, treating blank as absent.
 
@@ -103,12 +113,27 @@ def _unset(name: str) -> str | None:
     return value if (value or "").strip() else None
 
 
+def _first_set(*names: str) -> str | None:
+    """First of ``names`` with a non-blank value, or None."""
+    for name in names:
+        value = _unset(name)
+        if value is not None:
+            return value
+    return None
+
+
 def get_ion_credentials() -> tuple[str | None, str | None, str | None, str | None]:
+    """Device SSH credentials, under the short names first.
+
+    ION_USERNAME / ION_PASSWORD are what an operator would write, and are what
+    .env.example asks for. The longer PRISMA_ION_* forms still work so an
+    existing deployment does not break, and win nothing by being longer.
+    """
     return (
-        _unset("PRISMA_ION_USERNAME"),
-        _unset("PRISMA_ION_PASSWORD"),
-        _unset("PRISMA_ION_PRIVATE_KEY"),
-        _unset("PRISMA_ION_PRIVATE_KEY_PASSPHRASE"),
+        _first_set("ION_USERNAME", "PRISMA_ION_USERNAME"),
+        _first_set("ION_PASSWORD", "PRISMA_ION_PASSWORD"),
+        _first_set("ION_PRIVATE_KEY", "PRISMA_ION_PRIVATE_KEY"),
+        _first_set("ION_PRIVATE_KEY_PASSPHRASE", "PRISMA_ION_PRIVATE_KEY_PASSPHRASE"),
     )
 
 
@@ -125,29 +150,29 @@ def get_ion_known_hosts() -> str | None:
     ``ssh`` login as the same OS user. ``~`` is expanded here because the SSH
     layer is handed a plain path and does not expand it itself.
     """
-    value = (os.getenv("PRISMA_ION_KNOWN_HOSTS") or "").strip()
+    value = (os.getenv("ION_KNOWN_HOSTS") or os.getenv("PRISMA_ION_KNOWN_HOSTS") or "").strip()
     return os.path.expanduser(value) if value else None
 
 
 def get_ion_ssh_port() -> int:
-    return _int_env("PRISMA_ION_SSH_PORT", 22, minimum=1)
+    return _int_env(_pick("ION_SSH_PORT", "PRISMA_ION_SSH_PORT"), 22, minimum=1)
 
 
 def get_ion_probe_timeout() -> float:
-    return float(_int_env("PRISMA_ION_PROBE_TIMEOUT", 3, minimum=1))
+    return float(_int_env(_pick("ION_PROBE_TIMEOUT", "PRISMA_ION_PROBE_TIMEOUT"), 3, minimum=1))
 
 
 def get_ion_connect_timeout() -> float:
-    return float(_int_env("PRISMA_ION_CONNECT_TIMEOUT", 10, minimum=1))
+    return float(_int_env(_pick("ION_CONNECT_TIMEOUT", "PRISMA_ION_CONNECT_TIMEOUT"), 10, minimum=1))
 
 
 def get_ion_read_timeout() -> float:
-    return float(_int_env("PRISMA_ION_READ_TIMEOUT", 300, minimum=1))
+    return float(_int_env(_pick("ION_READ_TIMEOUT", "PRISMA_ION_READ_TIMEOUT"), 300, minimum=1))
 
 
 def get_ion_max_output_bytes() -> int:
-    return _int_env("PRISMA_ION_MAX_OUTPUT_BYTES", 40960)
+    return _int_env(_pick("ION_MAX_OUTPUT_BYTES", "PRISMA_ION_MAX_OUTPUT_BYTES"), 40960)
 
 
 def get_ion_max_commands() -> int:
-    return _int_env("PRISMA_ION_MAX_COMMANDS", 10)
+    return _int_env(_pick("ION_MAX_COMMANDS", "PRISMA_ION_MAX_COMMANDS"), 10)

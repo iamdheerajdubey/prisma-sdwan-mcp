@@ -82,27 +82,15 @@ RAW = RESULTS / "raw"
 
 
 def _normalise_env() -> None:
-    """Accept the three facts an SSH login actually needs, and nothing else.
+    """Map the probe's own target variables onto the internal names.
 
-    You log into an ION with an address, a username and a password, so that is
-    all the probe asks for:
-
-        ION_IP=10.0.0.1
-        ION_USERNAME=admin
-        ION_PASSWORD=...
-
-    The server's own configuration uses longer PRISMA_ION_* names and has a
-    dozen tuning knobs behind them. Those all have working defaults, so this
-    maps the short names onto the ones the server code reads and leaves the
-    rest alone. Set the PRISMA_ION_* names directly and they win -- this only
-    fills what is blank.
+    ION_USERNAME and ION_PASSWORD are read directly by config.py now, so only
+    the two variables that belong to the probe rather than the server need
+    translating here.
     """
     aliases = {
         "ION_IP": "PRISMA_PROBE_ION_HOST",
         "ION_HOST": "PRISMA_PROBE_ION_HOST",
-        "ION_USERNAME": "PRISMA_ION_USERNAME",
-        "ION_USER": "PRISMA_ION_USERNAME",
-        "ION_PASSWORD": "PRISMA_ION_PASSWORD",
         "ION_ELEMENT": "PRISMA_PROBE_ELEMENT",
     }
     for short, canonical in aliases.items():
