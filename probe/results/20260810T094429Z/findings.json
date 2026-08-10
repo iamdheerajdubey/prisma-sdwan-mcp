@@ -1,0 +1,260 @@
+{
+  "run_id": "20260810T094429Z",
+  "generated_utc": "2026-08-10T09:44:59.022270+00:00",
+  "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+  "target_host": "10.64.167.4",
+  "status_counts": {
+    "proven": 7,
+    "disproven": 0,
+    "inconclusive": 1,
+    "not_run": 1,
+    "crashed": 0
+  },
+  "findings": [
+    {
+      "gap": "G0",
+      "check": "environment",
+      "status": "proven",
+      "summary": "captured",
+      "file": "environment.json"
+    },
+    {
+      "gap": "G0",
+      "check": "ion_reachability",
+      "status": "proven",
+      "host": "10.64.167.4",
+      "port": 22,
+      "elapsed_s": 0.2,
+      "reachable": true
+    },
+    {
+      "gap": "G0",
+      "check": "host_key_bootstrap",
+      "status": "proven",
+      "host": "10.64.167.4",
+      "key_type": "ssh-ed25519",
+      "key_bits": 256,
+      "fingerprint": "SHA256:TiYojNvhul6GGfj8nF1FEoCCEX6pJTgEQ5LmwNWLQMw",
+      "written_to": "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/probe/results/20260810T094429Z/known_hosts",
+      "note": "recorded automatically, NOT verified out of band. This is what the run trusted; check it against the device if the results matter."
+    },
+    {
+      "gap": "G6",
+      "check": "direct_capture",
+      "status": "proven",
+      "prompt_repr": "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m  \\x08'",
+      "note": "captured without any of this project's code in the path; use it to answer G1/G3 even when the MCP tool failed",
+      "commands": [
+        {
+          "label": "small",
+          "command": "dump overview",
+          "elapsed_s": 0.78,
+          "error": null,
+          "bytes": 1627,
+          "lines": 45,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump overview\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump overview'",
+            "'Software\\t\\t\\t: 6.3.6-b9'",
+            "'Hardware Model\\t\\t\\t: ion 1200-s-c5g-ww'",
+            "'Hardware Version\\t\\t: 1.1'",
+            "'Time Now\\t\\t\\t: 2026-08-10 09:44:34'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "large",
+          "command": "dump interface status all",
+          "elapsed_s": 1.08,
+          "error": null,
+          "bytes": 11596,
+          "lines": 439,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump interface status all\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump interface status all'",
+            "'Interface\\t\\t: cellular1 '",
+            "'Device\\t\\t\\t: cellular1 '",
+            "'ID\\t\\t\\t: 1743451518242010696 '",
+            "'Active Cellular Link\\t: True'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        },
+        {
+          "label": "rejected",
+          "command": "dump zzprobenosuchsubcommand",
+          "elapsed_s": 0.62,
+          "error": null,
+          "bytes": 166,
+          "lines": 4,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "first_lines_repr": [
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump zzprobenosuchsubcommand\\x1b[J\\x1b[2K'",
+            "'\\x1b[31mAEDXB01-SDE01#\\x1b[0m dump zzprobenosuchsubcommand'",
+            "'unknown keyword \u201czzprobenosuchsubcommand\u201d'",
+            "'\\x1b[J\\x1b[2K'"
+          ],
+          "first_meaningful_line_index": 0,
+          "has_preamble_above_first_content": false
+        }
+      ]
+    },
+    {
+      "gap": "G1",
+      "check": "text_redaction",
+      "status": "inconclusive",
+      "verdict": "No candidate secrets in these two commands' output, so this run cannot prove or disprove the gap. The mechanism is still key-based; try a command whose output carries configuration.",
+      "commands": [
+        {
+          "label": "small",
+          "command": "dump overview",
+          "elapsed_s": 4.51,
+          "error": null,
+          "output_bytes": 1595,
+          "output_lines": 44,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "safety_redact_changed_anything": false,
+          "redacted_marker_count": 0,
+          "response_keys": [
+            "contract_version",
+            "per_command_output_cap_bytes",
+            "retrieved_at",
+            "run",
+            "summary",
+            "tool"
+          ]
+        },
+        {
+          "label": "large",
+          "command": "dump interface status all",
+          "elapsed_s": 4.33,
+          "error": null,
+          "output_bytes": 11558,
+          "output_lines": 438,
+          "candidate_secret_hits": [],
+          "candidate_hit_count": 0,
+          "safety_redact_changed_anything": false,
+          "redacted_marker_count": 0,
+          "response_keys": [
+            "contract_version",
+            "per_command_output_cap_bytes",
+            "retrieved_at",
+            "run",
+            "summary",
+            "tool"
+          ]
+        }
+      ]
+    },
+    {
+      "gap": "G3",
+      "check": "device_error_shape",
+      "status": "proven",
+      "command": "dump zzprobenosuchsubcommand",
+      "verdict": "Detection did not fire even though the command was rejected. The error vocabulary in _DEVICE_ERROR does not match what this device prints \u2014 see raw/rejected_output.txt for the wording to add.",
+      "tool_reported_ok": null,
+      "is_device_error_returned": false,
+      "line_count": 3,
+      "first_meaningful_line_index": 0,
+      "has_preamble_above_the_error": false,
+      "first_lines_repr": [
+        {
+          "line_number": 1,
+          "repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand'",
+          "is_blank_or_marker": false
+        },
+        {
+          "line_number": 2,
+          "repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand'",
+          "is_blank_or_marker": false
+        },
+        {
+          "line_number": 3,
+          "repr": "'unknown keyword \u201czzprobenosuchsubcommand\u201d'",
+          "is_blank_or_marker": false
+        }
+      ],
+      "full_output_repr": "'AEDXB01-SDE01# dump zzprobenosuchsubcommand\\nAEDXB01-SDE01# dump zzprobenosuchsubcommand\\nunknown keyword \u201czzprobenosuchsubcommand\u201d\\n'"
+    },
+    {
+      "gap": "G4",
+      "check": "truncation_and_caps",
+      "status": "proven",
+      "command": "dump interface status all",
+      "result_fields": [
+        "command",
+        "output",
+        "status",
+        "truncated"
+      ],
+      "output_bytes": 11567,
+      "envelope_keys": [
+        "contract_version",
+        "per_command_output_cap_bytes",
+        "retrieved_at",
+        "run",
+        "summary",
+        "tool"
+      ],
+      "note": "compare result_fields against what the caller needs to tell a truncated answer from a whole one"
+    },
+    {
+      "gap": "G2",
+      "check": "unauthenticated_http",
+      "status": "proven",
+      "bound": "127.0.0.1:35241",
+      "reachable_from": "this machine only \u2014 deliberately not 0.0.0.0",
+      "auth_configured": false,
+      "server_started": true,
+      "connected_without_credentials": true,
+      "tools_visible": [
+        "find_element",
+        "find_resource",
+        "find_site",
+        "generate_site_config",
+        "get_cellular",
+        "get_device_diagnostics",
+        "get_device_health",
+        "get_identity",
+        "get_interfaces",
+        "get_inventory",
+        "get_ipfix",
+        "get_monitoring",
+        "get_multicast",
+        "get_network_services",
+        "get_platform",
+        "get_policies",
+        "get_prisma_access",
+        "get_routing",
+        "get_security",
+        "get_service_connections",
+        "get_software",
+        "get_topology",
+        "get_wan",
+        "list_capabilities",
+        "read_capability",
+        "resolve_path",
+        "run_commands"
+      ],
+      "run_commands_exposed": true,
+      "called_run_commands_anonymously": true,
+      "reached_the_ion": false,
+      "elapsed_s": 4.03,
+      "response_excerpt": "{\"result\": \"{\\\"contract_version\\\":\\\"2.0.0\\\",\\\"tool\\\":\\\"run_commands\\\",\\\"summary\\\":\\\"Ran 1 command(s) on '10.64.167.4'\\\",\\\"run\\\":{\\\"target\\\":{\\\"host\\\":\\\"10.64.167.4\\\",\\\"port\\\":22},\\\"results\\\":[{\\\"command\\\":\\\"dump overview\\\",\\\"status\\\":\\\"ok\\\",\\\"output\\\":\\\"AEDXB01-SDE01# dump overview\\\\nAEDXB01-SDE01# dump overview\\\\nSoftware\\\\t\\\\t\\\\t: 6.3.6-b9\\\\nHardware Model\\\\t\\\\t\\\\t: ion 1200-s-c5g-ww\\\\nHardware Version\\\\t\\\\t: 1.1\\\\nTime Now\\\\t\\\\t\\\\t: 2026-08-10 09:44:58\\\\nUptime\\\\t\\\\t\\\\t\\\\t: 886h18m38.63s\\\\nLast Reboot Reason\\\\t\\\\t: unknown\\\\nDevice ID\\\\t\\\\t\\\\t: 027901-004448-2669\\\\nRegistration State\\\\t\\\\t: Assigned\\\\nRegistration Name\\\\t\\\\t: AEDXB01-SDE01\\\\nDescription\\\\t\\\\t\\\\t: \\\\nElement ID\\\\t\\\\t\\\\t: 1743451497200008896\\\\nSite ID\\\\t\\\\t\\\\t\\\\t: 1743465303015010196\\\\nSite Name\\\\t\\\\t\\\\t: AEDXB01\\\\nRole\\\\t\\\\t\\\\t\\\\t: SPOKE\\\\nTenant ID\\\\t\\\\t\\\\t: 1593498799\\\\nSite Mode\\\\t\\\\t\\\\t: in-path\\\\nSite State\\\\t\\\\t\\\\t: active\\\\nSpoke HA\\\\t\\\\t\\\\t: true\\\\nElement State\\\\t\\\\t\\\\t: active\\\\nSimple State\\\\t\\\\t\\\\t: active\\\\nController Connection\\\\t\\\\t: Up [CIC]\\\\nController\\\\t\\\\t\\\\t: controller.hood.cgnx.net [52.32.167.5 54.70.168.33]\\\\nStats Connection\\\\t\\\\t: Up [sdwan-stats-hood-us.cgnx.net] [34.102.90.252]\\\\nFlows Connection\\\\t\\\\t: Up [sdwan-stats-hood-us.cgnx.net] [34.102.90.252]\\\\nMIC Certificate\\\\t\\\\t\\\\t: valid until 2044-08-22 03:07:37 +0000 UTC\\\\nClaim Certificate\\\\t\\\\t: valid until 2035-03-29 20:05:02 +0000 UTC\\\\nL3 Direct Private WAN forwarding: true\\\\nL3 LAN forwarding\\\\t\\\\t: true\\\\n\\\\noperational interfaces\\\\n3\\\\t\\\\t\\\\t: addr 151.253.182.114/29 gw 151.253.182.113 (public)\\\\n4\\\\t\\\\t\\\\t: no address\\\\n4.300\\\\t\\\\t\\\\t: addr 10.64.167.4/26 (lan)\\\\n4.333\\\\t\\\\t\\\\t: addr 10.64.167.81/30 (control)\\\\n4.600\\\\t\\\\t\\\\t: addr 100.65.96.1/22 (lan)\\\\n4.601\\\\t\\\\t\\\\t: addr 100.81.96.1/22 (lan)\\\\n1\\\\t\\\\t\\\\t: addr 151.253.182.106/29 gw 151.253.182.105 (public)\\\\n2\\\\t\\\\t\\\\t: no address (public)\\\\nAEDXB01_INET-1_BKP_SL\\\\t: addr 172.21.0.252/31 gw 172.21.0.252\\\\nAEDXB01_INET-2_BKP_SL\\\\t: addr 172.21.0.254/31 gw 17",
+      "verdict": "An anonymous HTTP client listed run_commands with no authentication. The call did not reach the device in this run \u2014 see response_excerpt for why \u2014 but the tool is exposed unauthenticated regardless."
+    },
+    {
+      "gap": "G5",
+      "check": "name_resolution",
+      "status": "not_run",
+      "note": "PRISMA_PROBE_ELEMENT is unset, so the controller-backed name-to-address path was not exercised. This is not evidence that it works."
+    }
+  ]
+}
