@@ -1,0 +1,31 @@
+========================================================================
+prisma-sdwan-mcp diagnostic probe   run 20260810T091905Z
+results -> /home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/probe/results/20260810T091905Z
+========================================================================
+This captures FULL RAW DEVICE OUTPUT, including any secrets the ION
+prints. Those files are committed for review. Treat this repo as
+sensitive after running.
+
+--- G0: environment ---
+  [PROVEN      ] G0 :: environment
+
+--- G0: ion_reachability ---
+  [PROVEN      ] G0 :: ion_reachability
+
+--- G0: host_key_bootstrap ---
+  [PROVEN      ] G0 :: host_key_bootstrap
+
+--- G1: text_redaction ---
+  [INCONCLUSIVE] G1 :: text_redaction
+
+--- G3: device_error_shape ---
+  [INCONCLUSIVE] G3 :: device_error_shape
+
+--- G4: truncation_and_caps ---
+  [PROVEN      ] G4 :: truncation_and_caps
+
+--- G2: unauthenticated_http ---
+  [PROVEN      ] G2 :: unauthenticated_http
+
+--- G5: name_resolution ---
+  [NOT_RUN     ] G5 :: name_resolution
