@@ -80,6 +80,39 @@ RUN_ID = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
 RESULTS = REPO / "probe" / "results" / RUN_ID
 RAW = RESULTS / "raw"
 
+
+def _normalise_env() -> None:
+    """Accept the three facts an SSH login actually needs, and nothing else.
+
+    You log into an ION with an address, a username and a password, so that is
+    all the probe asks for:
+
+        ION_IP=10.0.0.1
+        ION_USERNAME=admin
+        ION_PASSWORD=...
+
+    The server's own configuration uses longer PRISMA_ION_* names and has a
+    dozen tuning knobs behind them. Those all have working defaults, so this
+    maps the short names onto the ones the server code reads and leaves the
+    rest alone. Set the PRISMA_ION_* names directly and they win -- this only
+    fills what is blank.
+    """
+    aliases = {
+        "ION_IP": "PRISMA_PROBE_ION_HOST",
+        "ION_HOST": "PRISMA_PROBE_ION_HOST",
+        "ION_USERNAME": "PRISMA_ION_USERNAME",
+        "ION_USER": "PRISMA_ION_USERNAME",
+        "ION_PASSWORD": "PRISMA_ION_PASSWORD",
+        "ION_ELEMENT": "PRISMA_PROBE_ELEMENT",
+    }
+    for short, canonical in aliases.items():
+        value = (os.getenv(short) or "").strip()
+        if value and not (os.getenv(canonical) or "").strip():
+            os.environ[canonical] = value
+
+
+_normalise_env()
+
 # The two commands named for this exercise: one small, one large. The large one
 # is what exercises truncation and the byte cap.
 CMD_SMALL = "dump overview"
@@ -243,6 +276,63 @@ def probe_reachability(host: str, port: int) -> bool:
             "note": "every later detector that needs the device will report not_run",
         })
         return False
+
+
+@detector("G0", "host_key_bootstrap")
+def bootstrap_host_key(host: str, port: int) -> None:
+    """Record the device's host key so the probe can connect unattended.
+
+    The server has no first-use trust: an ION whose key is not already on
+    record is refused. That is right for the server and pure friction for a
+    one-shot probe, which would otherwise demand a manual `ssh-keyscan` step
+    before it could do anything -- and `ssh-keyscan` itself returns nothing on
+    devices that only offer ssh-rsa, which modern OpenSSH disables.
+
+    So the probe fetches the key itself, through paramiko, and writes a
+    known_hosts into its own results directory. Trust is not skipped, it is
+    *recorded*: the fingerprint goes into findings.json, so what this run
+    trusted is auditable afterwards even though nobody verified it at the time.
+
+    An explicitly configured PRISMA_ION_KNOWN_HOSTS is never overwritten.
+    """
+    if os.getenv("PRISMA_ION_KNOWN_HOSTS", "").strip():
+        record("G0", "host_key_bootstrap", "not_run", {
+            "note": "PRISMA_ION_KNOWN_HOSTS is set explicitly; leaving it alone",
+            "configured": os.environ["PRISMA_ION_KNOWN_HOSTS"],
+        })
+        return
+
+    import base64
+    import hashlib
+
+    import paramiko
+
+    sock = socket.create_connection((host, port), timeout=15)
+    transport = paramiko.Transport(sock)
+    try:
+        transport.start_client(timeout=15)
+        key = transport.get_remote_server_key()
+    finally:
+        transport.close()
+
+    entry_host = host if port == 22 else f"[{host}]:{port}"
+    line = f"{entry_host} {key.get_name()} {key.get_base64()}\n"
+    path = RESULTS / "known_hosts"
+    path.write_text(line, encoding="utf-8", newline="\n")
+    os.environ["PRISMA_ION_KNOWN_HOSTS"] = str(path)
+
+    fingerprint = "SHA256:" + base64.b64encode(
+        hashlib.sha256(key.asbytes()).digest()
+    ).decode().rstrip("=")
+    record("G0", "host_key_bootstrap", "proven", {
+        "host": entry_host,
+        "key_type": key.get_name(),
+        "key_bits": key.get_bits(),
+        "fingerprint": fingerprint,
+        "written_to": str(path),
+        "note": "recorded automatically, NOT verified out of band. This is what the "
+                "run trusted; check it against the device if the results matter.",
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -584,13 +674,19 @@ def main() -> int:
     host = os.getenv("PRISMA_PROBE_ION_HOST", "").strip()
     element = os.getenv("PRISMA_PROBE_ELEMENT", "").strip() or None
     if not host:
+        log("\nNothing to probe: ION_IP is not set.")
+        log("Put three lines in .env and re-run:")
+        log("    ION_IP=10.0.0.1")
+        log("    ION_USERNAME=admin")
+        log("    ION_PASSWORD=...")
         record("G0", "probe_target", "not_run", {
-            "note": "PRISMA_PROBE_ION_HOST is unset. Every device-dependent detector "
-                    "is skipped. Set it in .env and re-run.",
+            "note": "ION_IP is unset, so every device-dependent detector was skipped. "
+                    "Set ION_IP, ION_USERNAME and ION_PASSWORD in .env and re-run.",
         })
     else:
         port = int(os.getenv("PRISMA_ION_SSH_PORT", "22") or 22)
         if probe_reachability(host, port):
+            bootstrap_host_key(host, port)
             probe_redaction(host)
             probe_error_detection(host)
             probe_truncation(host)

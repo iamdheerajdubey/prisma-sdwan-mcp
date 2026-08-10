@@ -11,23 +11,34 @@ that was not present when it ran.
 On the Linux server that can reach an ION:
 
 ```bash
-git clone <this repo> /tmp/prisma-mcp && cd /tmp/prisma-mcp
-python3 -m venv .venv && . .venv/bin/activate
-pip install -r requirements.txt && pip install -e .
+git clone git@github.com:iamdheerajdubey/prisma-sdwan-mcpv2.git ~/prisma-mcp
+cd ~/prisma-mcp   # not /tmp: it is often mounted noexec, which breaks the venv
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt && .venv/bin/pip install -e .
 
-cp .env.example .env      # then fill in the block below
-python probe/run_probe.py
+cp .env.example .env      # then fill in the three lines below
+.venv/bin/python probe/run_probe.py
 ```
 
-Required in `.env`:
+All `.env` needs is what you would type to SSH in by hand:
 
-| Variable | Why |
-|---|---|
-| `PRISMA_ION_USERNAME` + `PRISMA_ION_PASSWORD` *or* `PRISMA_ION_PRIVATE_KEY` | SSH to the device. Unset means every device check reports `not_run`. |
-| `PRISMA_PROBE_ION_HOST` | Which ION to probe. No default — the probe refuses rather than guessing. |
-| `PRISMA_ION_KNOWN_HOSTS` | Host-key file. There is no first-use trust; on a fresh server `~/.ssh/known_hosts` will not exist. |
-| `PRISMA_PROBE_ELEMENT` | Optional. An element name, to also exercise controller-backed name resolution. |
-| `PAN_CLIENT_ID` / `PAN_CLIENT_SECRET` / `PAN_TSG_ID` | Optional. Only needed for the name-resolution check. |
+```
+ION_IP=10.0.0.1
+ION_USERNAME=admin
+ION_PASSWORD=...
+```
+
+Optionally `ION_ELEMENT=<name>` plus the `PAN_*` credentials, to also exercise
+controller-backed name resolution. Everything else has a working default.
+
+The host key is handled for you. The server has no first-use trust, so an
+unknown device is normally refused — but demanding a manual `ssh-keyscan`
+before the probe can do anything is pure friction, and `ssh-keyscan` returns
+nothing at all on devices that only offer `ssh-rsa`. The probe fetches the key
+itself and writes a `known_hosts` into its own results directory. Trust is not
+skipped, it is *recorded*: the fingerprint lands in `findings.json`, so what
+the run trusted stays auditable even though nobody verified it at the time.
+Set `PRISMA_ION_KNOWN_HOSTS` explicitly and the probe leaves it alone.
 
 Then commit `probe/results/<run id>/` and push. That directory is the entire
 deliverable.
@@ -49,7 +60,7 @@ configured, cleared or restarted on the device.
 | **G2** | Is `run_commands` exposed without authentication over HTTP? | Starts the server on `127.0.0.1:<ephemeral>`, connects as an MCP client with no credentials, lists tools, and calls `run_commands` against the ION. Loopback only — never reachable from the network. |
 | **G3** | Does the device put its error on the first line? | Sends a command the policy permits and the device rejects, then captures the exact bytes with `repr()` so whitespace and caret markers are visible, and checks whether `_is_device_error()` fired. The same first-line assumption was already proven wrong on Cisco IOS. |
 | **G4** | Does a caller receive enough to tell truncated output from whole output? | Captures the result fields and byte counts for the large command. |
-| **G5** | Does controller-backed name resolution work? | Only if `PRISMA_PROBE_ELEMENT` is set; otherwise recorded as `not_run`. |
+| **G5** | Does controller-backed name resolution work? | Only if `ION_ELEMENT` is set; otherwise recorded as `not_run`. |
 
 ## Reading the results
 
