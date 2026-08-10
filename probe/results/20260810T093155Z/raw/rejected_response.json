@@ -1,0 +1,7 @@
+{
+  "code": "host_key_unverified",
+  "message": "\nA paramiko SSHException occurred during connection creation:\n\nServer '10.64.167.4' not found in known_hosts\n\n",
+  "tool": "run_commands",
+  "retryable": false,
+  "results": []
+}
