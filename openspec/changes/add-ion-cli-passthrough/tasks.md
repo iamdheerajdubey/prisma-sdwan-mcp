@@ -33,9 +33,9 @@
 ## 5. The `run_commands` tool
 
 - [x] 5.1 Create `prisma_sdwan_mcp/tools/cli.py` registering `run_commands` on the `mcp` singleton with the `ACTIVE_DIAGNOSTIC` annotations and a full operational docstring in the existing house style.
-- [x] 5.2 Accept `element` and/or `host`, optional `site`, `commands`, and optional per-call credential overrides. An explicit `host` always wins and is never refused or cross-checked; `element` then only labels the response. An input error is returned only when neither is supplied.
+- [x] 5.2 Accept `element` and/or `host`, optional `site`, and `commands`. An explicit `host` always wins and is never refused or cross-checked; `element` then only labels the response. An input error is returned only when neither is supplied. *Per-call credential overrides shipped and were later removed: two credential sources disagreed about what "not set" means, and a tool argument is model-visible. Configuration is now the only source.*
 - [x] 5.3 Enforce call order strictly: policy validation → credential availability → address resolution → reachability probe → SSH session. Confirm by test that a policy denial reaches none of the later stages and that a missing credential performs no resolution call.
-- [x] 5.4 Map failures onto `error_json` codes: `policy_denied`, `configuration_error`, `device_unreachable` (details carry the address and port tried, non-retryable), `host_key_unverified`, `device_authentication_failed`, `device_connection_failed`; resolution failures flow through `common.handle_error`.
+- [x] 5.4 Map failures onto `error_json` codes: `policy_denied`, `configuration_error`, `device_unreachable` (details carry the address and port tried, non-retryable), `host_key_unverified`, `device_authentication_failed`, `device_connection_failed`; resolution failures flow through `common.handle_error`. *`rate_limited` added after live validation — see 10.6.*
 - [x] 5.5 Compute the effective per-command cap as `min(configured_cap, response_budget // len(commands))` with a floor, then return the batch via `single_json` so the oversized-object outline path is never reached.
 - [x] 5.6 Route the assembled payload through `runtime.safety.redact` before returning, consistent with every other response path.
 - [x] 5.7 Include the resolved element name, element ID, and address actually used in every successful response.
@@ -66,8 +66,20 @@
 ## 9. Live validation
 
 - [x] 9.1a Verify against the live tenant which address the controller API can produce for a named element. **Done 2026-08-09** — the `controller_connection_intf` heuristic was wrong and has been replaced by `used_for` role + interface status record; 14/15 sampled elements resolve to exactly one address. Recorded in `docs/LIVE_VALIDATION.md` Step 7.
-- [ ] 9.1b Verify that the resolved address is actually SSH-reachable from wherever MCPv2 runs. Not answerable from the API — needs a real connection attempt.
-- [ ] 9.2 Verify the `--More--` pagination marker against real oversized `dump` output.
-- [ ] 9.3 Verify whether the target ION deployment accepts public-key authentication.
-- [ ] 9.4 Verify that `device_unreachable` fires correctly and quickly from a host with no route to the device.
-- [ ] 9.5 Record all four outcomes in `docs/LIVE_VALIDATION.md` following the existing step format.
+- [x] 9.1b Verify that the resolved address is actually SSH-reachable from wherever MCPv2 runs. **Done 2026-08-10** — element AEDXB01-SDE01 resolved to 10.64.167.4 and SSH sessions succeeded from the Linux host. Resolution needed a fix first: the element had no `controller` interface and three live `lan` addresses, two of them RFC 6598 service-link space. See `docs/LIVE_VALIDATION.md`.
+- [ ] 9.2 Verify the `--More--` pagination marker against real oversized `dump` output. **Still unexercised** — `dump interface status all` returned 11,568 bytes in one read with no pagination marker, so the paging loop has never run against a real device. A larger command is needed.
+- [ ] 9.3 Verify whether the target ION deployment accepts public-key authentication. **Still untested** — all seven live runs used password authentication.
+- [ ] 9.4 Verify that `device_unreachable` fires correctly and quickly from a host with no route to the device. **Not directly observed for the tool's own error path** — the probe's pre-flight socket check failed fast against an unroutable address, but `run_commands` itself was never driven at one.
+- [x] 9.5 Record the outcomes in `docs/LIVE_VALIDATION.md`. **Done 2026-08-10** — seven probe runs against an ION 1200 (software 6.3.6-b9), evidence in `probe/results/`.
+
+## 10. Defects found only against real hardware
+
+Each of these made `run_commands` unusable or silently wrong, and none was reachable by a unit test. All are fixed with regression tests using the captured bytes.
+
+- [x] 10.1 A blank `ION_PRIVATE_KEY=` in the stock `.env` refused a valid password: `os.getenv` returns `''`, not `None`, and the "exactly one of password or key" check read blank as configured.
+- [x] 10.2 A configured `known_hosts` file was never loaded — netmiko needs `alt_host_keys=True` beside `alt_key_file`, and only the latter was set, leaving no host keys loaded at all. Failed closed, so never a security hole.
+- [x] 10.3 ANSI colour in the ION prompt made the completion pattern match the command echo, so the tool returned the caller's own command as the device's answer with `status: "ok"`.
+- [x] 10.4 A rejected command was reported as successful: the ION echoes prompt and command twice before its error text.
+- [x] 10.5 Name resolution could not pick between three live `lan` addresses; RFC 6598 (100.64.0.0/10) service-link addresses are now excluded.
+- [x] 10.6 A device-side SSH rate limit was reported as a permanent failure. Measured: four consecutive sessions succeeded, the fifth was reset before the version string. Now `rate_limited`, and retryable.
+- [x] 10.7 Regression coverage that needs no device: `probe/replay.py` runs captured device bytes through the real code path, and `tests/test_ion_replay.py` runs it in CI. Mutation-verified.

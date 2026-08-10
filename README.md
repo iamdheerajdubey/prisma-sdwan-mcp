@@ -80,7 +80,7 @@ Eight useful SDK calls are not represented in the generated 308-action registry:
 - VPN-link status
 - VPN-link state
 
-They are stored in `prisma_sdwan_mcp/data/curated_capabilities.json` rather than hidden in tool code. The semantic tools use them directly, but the generic `read_capability` blocks them by default until live validation is completed.
+They are stored in `prisma_sdwan_mcp/data/curated_capabilities.json` rather than hidden in tool code. All eight were validated against a live tenant, so `read_capability` executes them directly. A future curated action added without live validation is blocked by default until it is verified.
 
 See `docs/LIVE_VALIDATION.md`.
 
@@ -90,20 +90,17 @@ The one tool that reaches the **device** instead of the controller API, over SSH
 
 **This is a second, materially different network requirement.** The rest of this server only needs outbound HTTPS to the Prisma SASE controller. `run_commands` additionally needs outbound SSH connectivity from wherever this server runs to each ION's management address. A deployment that has one does not necessarily have the other — a container with no route to branch management networks will get a fast, explicit `device_unreachable` error rather than a hang or a misleading auth failure.
 
-**SSH host-key checking is always strict.** The target device's host key must already be present in the system's `known_hosts` file (or an alternate file passed as `known_hosts_file`) before `run_commands` is called — e.g. via one prior interactive `ssh` login, or `ssh-keyscan`. There is no auto-trust, ever, including as a retry after failure.
+**SSH host-key checking is always strict.** The target device's host key must already be present in the `known_hosts` file before `run_commands` is called — e.g. via one prior interactive `ssh` login, or `ssh-keyscan`. There is no auto-trust, ever, including as a retry after failure.
 
-**Credentials are environment-only by default.** Set these to enable the tool at all; leaving them unset means every call fails closed with `configuration_error` before any resolution, probe, or connection is attempted:
+**Credentials are configuration-only.** The tool signature is:
 
 ```text
-PRISMA_ION_USERNAME
-PRISMA_ION_PASSWORD            # or PRISMA_ION_PRIVATE_KEY (+ optional _PASSPHRASE), exactly one
-PRISMA_ION_PRIVATE_KEY
-PRISMA_ION_PRIVATE_KEY_PASSPHRASE
+run_commands(commands, element=None, host=None, site=None)
 ```
 
-Optional tuning (sane defaults if unset): `PRISMA_ION_SSH_PORT` (22), `PRISMA_ION_PROBE_TIMEOUT` (3s), `PRISMA_ION_CONNECT_TIMEOUT` (10s), `PRISMA_ION_READ_TIMEOUT` (300s hang ceiling, not a pacing knob), `PRISMA_ION_MAX_OUTPUT_BYTES` (40960, divided across a batch), `PRISMA_ION_MAX_COMMANDS` (10 per batch).
+Credentials, SSH port and the `known_hosts` path are read from the server's environment and can never be passed as tool arguments. That is deliberate: a tool argument is authored by the model and lands in the conversation transcript. Set `ION_USERNAME` plus one of `ION_PASSWORD` / `ION_PRIVATE_KEY`; with neither set, every call fails closed with `configuration_error` before any resolution, probe, or connection is attempted.
 
-Per-call `username`/`password`/`private_key`/`private_key_passphrase` arguments remain available as an explicit override for callers that genuinely need per-engagement credentials, but the environment path is what every other MCPv2 secret uses and is the default for a reason: a tool argument is authored by the model and typically lands in a logged conversation transcript.
+Everything else — SSH port, probe/connect/read timeouts, output byte ceiling, commands per batch — has a working default. See `docs/CONFIGURATION.md` to change one. The older `PRISMA_ION_*` spellings still work; the short `ION_*` names are canonical.
 
 ## Install
 
@@ -115,13 +112,18 @@ pip install -e .
 cp .env.example .env
 ```
 
-Populate:
+`.env` is six settings and no more:
 
 ```text
-PAN_CLIENT_ID
+PAN_CLIENT_ID          # controller
 PAN_CLIENT_SECRET
 PAN_TSG_ID
+ION_USERNAME           # device SSH (run_commands); blank disables the tool
+ION_PASSWORD
+ION_IP                 # diagnostic probe only -- the server ignores it
 ```
+
+Every other setting has a working default in code. `docs/CONFIGURATION.md` is the full list if you ever need to change one.
 
 ## Run
 
@@ -156,33 +158,29 @@ Dependency-free core tests validate:
 - recursive secret redaction;
 - cursor pagination.
 
-Run:
+Run (234 tests, no live tenant needed):
 
 ```bash
-PYTHONPATH=. pytest -q
+PYTHONPATH=. python -m pytest -q
 ```
 
 Live tenant/API validation is intentionally separate. Follow `docs/LIVE_VALIDATION.md` before production cutover.
 
-## Console: a second MCP consumer
+## Diagnostic probe (`probe/`)
 
-`webui/` is a local web console -- browse the tool surface, inspect live results, and optionally
-ask a real model a question with the call chain shown alongside the answer. It is a client of this
-server over MCP stdio, exactly like Claude Desktop or any other MCP host: it speaks the protocol,
-not the Python package, and it lives behind its own optional install extra so the base server gains
-nothing from its existence.
+`probe/run_probe.py` drives this server against a real ION and writes the evidence — raw device
+output, findings, and what it trusted — into `probe/results/<run id>/`. It only sends commands the
+policy already permits and configures nothing on the device. It captures full raw device output on
+purpose, so point it at a device you are willing to expose.
 
-```bash
-pip install -e ".[webui]"
-python webui/server.py
-```
+`probe/replay.py` needs no device: it replays captured device bytes through the real code path, so
+read-termination and parsing bugs can be reproduced and fixed without another trip to the lab.
 
-See `webui/README.md` for the credential model, the loopback-bind warning, and what was
-deliberately not carried over from its predecessor.
+See `probe/README.md`.
 
 ## Files to read first
 
 1. `docs/ARCHITECTURE.md`
-2. `docs/TOOL_CATALOG.md`
-3. `docs/LIVE_VALIDATION.md`
-4. `webui/README.md` -- if you're working on the console rather than the server
+2. `docs/CONFIGURATION.md`
+3. `docs/TOOL_CATALOG.md`
+4. `docs/LIVE_VALIDATION.md`

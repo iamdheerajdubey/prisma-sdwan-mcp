@@ -17,7 +17,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-webui = ["anthropic[mcp]>=0.109,<1"]
 
 [project.scripts]
 prisma-sdwan-mcp = "prisma_sdwan_mcp.server:main"
@@ -31,7 +30,6 @@ testpaths = ["tests"]
 markers = [
   "live: tests that require a live Prisma SD-WAN tenant",
   "sdk: tests that require prisma_sase to be installed",
-  "webui: tests that require the optional webui extra (anthropic) to be installed",
 ]
 
 [tool.setuptools.packages.find]

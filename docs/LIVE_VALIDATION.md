@@ -292,3 +292,67 @@ Still unverified (needs a real SSH attempt, not an API call):
 - whether the MCPv2 host can route to these addresses (mostly RFC1918)
 - the `--More--` pagination marker
 - public-key SSH authentication
+
+## ION CLI live device validation (2026-08-10)
+
+The SSH attempt the previous step could not make. `run_commands` was driven
+end to end against a real device.
+
+| | |
+| --- | --- |
+| Device | Prisma SD-WAN ION 1200-s-c5g-ww, software 6.3.6-b9 |
+| Element / site | `AEDXB01-SDE01` / `AEDXB01` |
+| Method | seven runs of `probe/run_probe.py`, evidence committed under `probe/results/` |
+
+### Six defects found
+
+None of these were reachable by a unit test. Each is a disagreement between
+what the code assumed and what the device actually does, so only a real ION
+could expose it.
+
+1. **A blank line in the stock `.env` refused a valid password.** `.env.example`
+   ships `ION_PRIVATE_KEY=`; `os.getenv` returns `''` rather than `None`, and
+   the "exactly one of password or key" check read that blank as a configured
+   key. Every deployment that copied `.env.example` hit it.
+2. **A configured `known_hosts` file was never loaded.** netmiko needs
+   `alt_host_keys=True` alongside `alt_key_file`, and only the latter was set,
+   so **no** host keys loaded at all. This failed closed — it was never a
+   security hole, only an unusable one.
+3. **The tool returned the caller's own command as the device's answer, with
+   `status: "ok"`.** ANSI colour codes in the ION prompt
+   (`\x1b[31mAEDXB01-SDE01#\x1b[0m`) made the completion pattern match the
+   command echo. Fixed by enabling netmiko's `ansi_escape_codes` and anchoring
+   the prompt pattern to a line of its own.
+4. **Rejected commands were reported as successful.** The ION echoes
+   prompt+command **twice** before its error text (`unknown keyword «...»`), so
+   inspecting only the first line inspected the echo, not the error.
+5. **Name resolution returned `ambiguous_match`.** The element had no
+   `controller` interface and three live `lan` addresses — `10.64.167.4`,
+   `100.65.96.1`, `100.81.96.1`. Two are RFC 6598 (100.64.0.0/10) service-link
+   addresses; excluding that range leaves exactly the one that answers SSH.
+6. **A device-side SSH rate limit was reported as a permanent
+   `device_connection_failed`.** Measured: four consecutive sessions succeeded,
+   the fifth was reset before the version string ("Error reading SSH protocol
+   banner ... reset by peer"). It now maps to `rate_limited`, the one code the
+   response envelope marks retryable — it clears on its own.
+
+### Confirmed working
+
+- **Output truncation** fires and declares both byte counts (4074 of 11568 at a
+  deliberately lowered cap), so a caller can tell a cut answer from a whole one
+  from the result fields alone.
+- **Read stability** is now consistent across repeated runs — 1595, 1594, 1594,
+  1594 bytes for `dump overview`, where the same command previously swung
+  between 1627 and 82.
+- **Text redaction** found no credential material in the permitted
+  `dump`/`inspect` families. The device answers `unknown keyword` to `snmp`,
+  `users`, `authentication` and `ipsec`, so an ION's secrets largely are not on
+  the device CLI at all.
+
+### Still not validated
+
+- The dialect and interface heuristics were exercised on **one element of one
+  model**. Another ION model, or an element with a real `controller`
+  interface, is untested.
+- `run_commands` over HTTP transport **with authentication** has never been
+  exercised.

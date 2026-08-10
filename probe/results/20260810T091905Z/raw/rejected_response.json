@@ -1,9 +1,0 @@
-{
-  "code": "configuration_error",
-  "message": "ION SSH credentials are not configured: set PRISMA_ION_USERNAME and exactly one of PRISMA_ION_PASSWORD or PRISMA_ION_PRIVATE_KEY, or supply them for this call",
-  "tool": "run_commands",
-  "retryable": false,
-  "status_code": 400,
-  "missing_setting": "PRISMA_ION_USERNAME/PRISMA_ION_PASSWORD/PRISMA_ION_PRIVATE_KEY",
-  "results": []
-}

@@ -1,4 +1,0 @@
-[31mAEDXB01-SDE01#[0m dump zzprobenosuchsubcommand[J[2K
-[31mAEDXB01-SDE01#[0m dump zzprobenosuchsubcommand
-unknown keyword “zzprobenosuchsubcommand”
-[J[2K
