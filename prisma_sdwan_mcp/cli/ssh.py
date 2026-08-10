@@ -285,7 +285,7 @@ def _is_connection_refused_by_device(error: BaseException) -> bool:
     one clears on its own -- reporting it as a permanent `connection` error
     tells the caller to stop when it should pause and retry.
 
-    Measured on a live ion 1200 (probe run 20260810T105544Z): four consecutive
+    Measured on a live ion 1200 (2026-08-10): four consecutive
     sessions succeeded, the fifth was reset.
     """
     text = str(error).lower()

@@ -14,7 +14,7 @@ python -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install -e .
-cp .env.example .env           # six settings; everything else has a code default
+cp .env.example .env           # five settings; everything else has a code default
 
 # Test (dependency-free core suite; no live tenant needed)
 PYTHONPATH=. pytest -q
@@ -30,16 +30,7 @@ docker build -t prisma-sdwan-mcp .
 docker run --rm --env-file .env prisma-sdwan-mcp
 ```
 
-```bash
-# Diagnostic probe: drives the server against a real ION, writes evidence to
-# probe/results/. Needs a reachable device; see probe/README.md.
-python probe/run_probe.py
-
-# Offline replay of captured device bytes through the real code path. No
-# device. This is how device-dependent behaviour is regression-tested, and
-# tests/test_ion_replay.py runs it in CI.
-python probe/replay.py
-```
+Device-dependent behaviour is regression-tested without hardware: `tests/fixtures/ion/direct_*.txt` holds bytes captured verbatim from a live ION 1200 (6.3.6-b9), and `tests/test_ion_replay.py` replays them through the real code path with no device attached. It is an ordinary part of the run above — no marker, no hardware.
 
 Two pytest markers exist (`live`, `sdk`) for tests requiring a real tenant / the `prisma_sase` package — see `docs/LIVE_VALIDATION.md` before running anything against a live controller.
 
@@ -104,13 +95,13 @@ A result whose text changed carries `redacted: true`, or a fully redacted value 
 - **Addressing** (`cli/address.py`): element name → site → element → interfaces → live management address. Filters `used_for` to `controller`/`lan`, requires `operational_state == "up"`, and excludes RFC 6598 shared address space (100.64.0.0/10) — Prisma uses that range for service-link and tunnel endpoints. Never guesses: several candidates raise `ResolutionError` carrying them.
 - **Credentials are configuration-only.** `run_commands(commands, element, host, site)` takes no credential, port or known_hosts argument. A tool argument is model-visible and lands in the conversation transcript. There was a second per-call path once and the two sources disagreed about what "not set" meant; one source removed the class of bug.
 - **Error taxonomy**: `unreachable`, `host_key`, `authentication`, `rate_limited`, `connection`. `rate_limited` is the only retryable one — a live ION resets roughly the fifth SSH session opened in quick succession, and unlike every other connection failure it clears on its own.
-- **Reading device output is where the bugs live.** Six defects were found only against real hardware (see `docs/LIVE_VALIDATION.md`): ANSI escapes in the prompt made the read terminate on the command echo, the prompt carries a trailing ``, the device echoes prompt+command twice above its error text. Change `cli/ssh.py` only with `probe/replay.py` green — it replays captured device bytes through the real path and is mutation-verified.
+- **Reading device output is where the bugs live.** Six defects were found only against real hardware (see `docs/LIVE_VALIDATION.md`): ANSI escapes in the prompt made the read terminate on the command echo, the prompt carries a trailing ``, the device echoes prompt+command twice above its error text. Change `cli/ssh.py` only with `tests/test_ion_replay.py` green — it replays the captured device bytes in `tests/fixtures/ion/` through the real path and is mutation-verified.
 
 ## Key env vars (see `.env.example`, read via `config.py`)
 
 `PAN_CLIENT_ID`, `PAN_CLIENT_SECRET`, `PAN_TSG_ID`, `PAN_CONTROLLER`, `MCP_MAX_RESPONSE_BYTES`, `MCP_DEFAULT_PAGE_SIZE`, `MCP_MAX_PAGE_SIZE`, `MCP_MAX_FANOUT`, `MCP_EXPERT_TOOL_ENABLED`, `MCP_ALLOW_UNVERIFIED_COMPAT`.
 
-`.env.example` holds **six** settings and nothing else: `PAN_CLIENT_ID`, `PAN_CLIENT_SECRET`, `PAN_TSG_ID`, `ION_USERNAME`, `ION_PASSWORD`, and `ION_IP` which only the probe reads. Every other variable has a working default in `config.py` and is documented in `docs/CONFIGURATION.md` — do not re-add defaults to `.env.example`, a value written in two places only drifts.
+`.env.example` holds **five** settings and nothing else: `PAN_CLIENT_ID`, `PAN_CLIENT_SECRET`, `PAN_TSG_ID`, `ION_USERNAME`, `ION_PASSWORD`. Every other variable has a working default in `config.py` and is documented in `docs/CONFIGURATION.md`. Do not re-add defaults to `.env.example`: a value written in two places only drifts, and a variable no code reads is worse than none — it reads as a knob, and whoever sets it will wonder why nothing happens.
 
 ION CLI (unset means `run_commands` fails closed with `configuration_error` before any network activity): `ION_USERNAME`, `ION_PASSWORD` or `ION_PRIVATE_KEY`, `ION_KNOWN_HOSTS`, `ION_SSH_PORT`, `ION_PROBE_TIMEOUT`, `ION_CONNECT_TIMEOUT`, `ION_READ_TIMEOUT`, `ION_MAX_OUTPUT_BYTES`, `ION_MAX_COMMANDS`. The longer `PRISMA_ION_*` spellings still work.
 

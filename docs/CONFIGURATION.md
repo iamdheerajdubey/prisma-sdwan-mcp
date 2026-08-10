@@ -1,8 +1,8 @@
 # Configuration
 
-`.env.example` has six lines because six is all the server needs. Everything
-below already has a working default in `config.py` and only needs setting if
-you have a specific reason.
+`.env.example` holds five settings because five is all the server reads.
+Everything below already has a working default in `config.py` and only needs
+setting if you have a specific reason.
 
 Real environment variables always beat `.env`, so container secrets are never
 overwritten by a checked-out file. `PRISMA_ENV_FILE` points the loader at a
@@ -54,8 +54,9 @@ The longer `PRISMA_ION_*` spellings of all of these still work.
 | `MCP_ALLOW_UNVERIFIED_COMPAT` | `false` | Allows curated actions still marked `requires_live_test` through the generic expert tool. Semantic tools expose them regardless. |
 | `PAN_CONTROLLER` | `https://api.sase.paloaltonetworks.com` | Alternate controller endpoint. |
 
-## Probe only
+## Removed
 
-`ION_IP` — which device `probe/run_probe.py` tests. The server ignores it.
-Optionally `ION_ELEMENT`, an element name, to also exercise controller-backed
-name resolution.
+`ION_IP` and `ION_ELEMENT` were read only by a diagnostic script that no longer
+exists, and are gone from `.env.example`. Nothing reads them. A configuration
+value that no code consults is worse than no value: it reads as a knob, and the
+first person to set it will wonder why nothing happens.

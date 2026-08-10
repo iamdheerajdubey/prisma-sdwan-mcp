@@ -275,7 +275,7 @@ def test_blank_private_key_in_env_does_not_block_password_auth(monkeypatch):
     password. Shipping .env.example with that blank line made the tool
     unusable for anyone who followed the documented setup.
 
-    Found by probe/run_probe.py against a live ION on 2026-08-10.
+    Found against a live ION on 2026-08-10.
     """
     from prisma_sdwan_mcp.tools.cli import _configured_credentials
 

@@ -181,7 +181,7 @@ def test_unresolvable_element_name_is_a_distinct_error(monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# RFC 6598 shared address space. Found by probe run 20260810T104737Z: a live
+# RFC 6598 shared address space. Found on a live device run, 2026-08-10: a live
 # ion 1200 had no `controller` interface and three live `lan` ones, so name
 # resolution refused as ambiguous and name-based addressing did not work on
 # that device at all. Two of the three were 100.64/10 -- Prisma's service-link

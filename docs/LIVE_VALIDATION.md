@@ -302,7 +302,7 @@ end to end against a real device.
 | --- | --- |
 | Device | Prisma SD-WAN ION 1200-s-c5g-ww, software 6.3.6-b9 |
 | Element / site | `AEDXB01-SDE01` / `AEDXB01` |
-| Method | seven runs of `probe/run_probe.py`, evidence committed under `probe/results/` |
+| Method | seven live diagnostic runs on 2026-08-10; the device's verbatim output from those runs is kept as `tests/fixtures/ion/direct_*.txt` |
 
 ### Six defects found
 

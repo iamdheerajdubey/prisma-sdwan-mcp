@@ -70,7 +70,7 @@
 - [ ] 9.2 Verify the `--More--` pagination marker against real oversized `dump` output. **Still unexercised** — `dump interface status all` returned 11,568 bytes in one read with no pagination marker, so the paging loop has never run against a real device. A larger command is needed.
 - [ ] 9.3 Verify whether the target ION deployment accepts public-key authentication. **Still untested** — all seven live runs used password authentication.
 - [ ] 9.4 Verify that `device_unreachable` fires correctly and quickly from a host with no route to the device. **Not directly observed for the tool's own error path** — the probe's pre-flight socket check failed fast against an unroutable address, but `run_commands` itself was never driven at one.
-- [x] 9.5 Record the outcomes in `docs/LIVE_VALIDATION.md`. **Done 2026-08-10** — seven probe runs against an ION 1200 (software 6.3.6-b9), evidence in `probe/results/`.
+- [x] 9.5 Record the outcomes in `docs/LIVE_VALIDATION.md`. **Done 2026-08-10** — seven probe runs against an ION 1200 (software 6.3.6-b9); the device's verbatim output from those runs is kept as `tests/fixtures/ion/direct_*.txt`.
 
 ## 10. Defects found only against real hardware
 
@@ -82,4 +82,4 @@ Each of these made `run_commands` unusable or silently wrong, and none was reach
 - [x] 10.4 A rejected command was reported as successful: the ION echoes prompt and command twice before its error text.
 - [x] 10.5 Name resolution could not pick between three live `lan` addresses; RFC 6598 (100.64.0.0/10) service-link addresses are now excluded.
 - [x] 10.6 A device-side SSH rate limit was reported as a permanent failure. Measured: four consecutive sessions succeeded, the fifth was reset before the version string. Now `rate_limited`, and retryable.
-- [x] 10.7 Regression coverage that needs no device: `probe/replay.py` runs captured device bytes through the real code path, and `tests/test_ion_replay.py` runs it in CI. Mutation-verified.
+- [x] 10.7 Regression coverage that needs no device: `tests/test_ion_replay.py` runs the captured device bytes in `tests/fixtures/ion/` through the real code path, as an ordinary part of the suite. Mutation-verified.

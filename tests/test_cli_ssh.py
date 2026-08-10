@@ -603,8 +603,8 @@ def test_unreachable_probe_failure_is_never_retried():
 
 
 # ---------------------------------------------------------------------------
-# Host-key file wiring. Found by the second live probe run (probe/results/
-# 20260810T093155Z): every connection failed "not found in known_hosts" even
+# Host-key file wiring. Found by the second live device run (2026-08-10):
+# every connection failed "not found in known_hosts" even
 # though a valid known_hosts had been written and PRISMA_ION_KNOWN_HOSTS set.
 # ---------------------------------------------------------------------------
 def test_a_supplied_known_hosts_file_is_actually_loaded():
@@ -647,7 +647,7 @@ def test_without_a_known_hosts_file_the_system_default_is_used():
 
 # ---------------------------------------------------------------------------
 # Captured verbatim from a live ion 1200-s-c5g-ww running 6.3.6-b9
-# (probe/results/20260810T093714Z). The device echoes the prompt and the
+# (live device run, 2026-08-10). The device echoes the prompt and the
 # command TWICE before saying what was wrong, so reading literally the first
 # line inspects the echo and reports a rejected command as successful.
 # ---------------------------------------------------------------------------
@@ -804,8 +804,7 @@ def test_output_is_not_cut_short_by_its_own_echo():
 
 
 # ---------------------------------------------------------------------------
-# Device-side rate limiting. Measured on a live ion 1200 (probe run
-# 20260810T105544Z): four consecutive SSH sessions succeeded, the fifth was
+# Device-side rate limiting. Measured on a live ion 1200 (2026-08-10): four consecutive SSH sessions succeeded, the fifth was
 # reset before the version string. A session is opened per call, so an
 # assistant answering about several sites meets this in ordinary use.
 # ---------------------------------------------------------------------------

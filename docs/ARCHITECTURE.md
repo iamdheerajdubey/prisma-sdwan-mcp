@@ -185,9 +185,9 @@ The selected surface keeps high-use intents easy to discover while the expert ca
 
 ## Testing the CLI lane without a device
 
-Everything in the CLI lane depends on how a real ION behaves, which is exactly what a unit test cannot invent. `probe/` closes that gap in two steps:
+Everything in the CLI lane depends on how a real ION behaves, which is exactly what a unit test cannot invent. Captured device bytes close that gap:
 
-- `probe/run_probe.py` drives this server against a real ION and writes evidence to `probe/results/<run id>/` — findings with an explicit status each (`proven`, `disproven`, `inconclusive`, `not_run`, `crashed`), plus the device's verbatim bytes and the tool's full response envelopes. See `probe/README.md`.
-- `probe/replay.py` feeds those captured bytes back through the real code path with no device attached. `tests/test_ion_replay.py` runs it in CI, so a capture becomes a permanent regression fixture instead of a one-off observation.
+- `tests/fixtures/ion/direct_*.txt` holds the device's verbatim output, captured during the live runs of 2026-08-10 against an ION 1200 running 6.3.6-b9 — the real ANSI escapes and the doubled command echo included.
+- `tests/test_ion_replay.py` feeds those bytes back through the real code path (`_command_result`, `_completion_pattern`, `_normalise_prompt`) with no device attached. It runs in the ordinary suite, so a capture is a permanent regression fixture instead of a one-off observation.
 
 The bug this pins is a race: `dump overview` returned 1627 bytes in one live run and 82 — its own command echo — in the next, from identical code, because a prompt-based read terminator can match the echo before the output arrives. Observing that once per lab round-trip was the slowest possible way to fix it; replay makes the losing case happen every time.

@@ -112,7 +112,7 @@ pip install -e .
 cp .env.example .env
 ```
 
-`.env` is six settings and no more:
+`.env` is five settings and no more:
 
 ```text
 PAN_CLIENT_ID          # controller
@@ -120,7 +120,6 @@ PAN_CLIENT_SECRET
 PAN_TSG_ID
 ION_USERNAME           # device SSH (run_commands); blank disables the tool
 ION_PASSWORD
-ION_IP                 # diagnostic probe only -- the server ignores it
 ```
 
 Every other setting has a working default in code. `docs/CONFIGURATION.md` is the full list if you ever need to change one.
@@ -158,7 +157,7 @@ Dependency-free core tests validate:
 - recursive secret redaction;
 - cursor pagination.
 
-Run (234 tests, no live tenant needed):
+Run (251 tests, no live tenant needed):
 
 ```bash
 PYTHONPATH=. python -m pytest -q
@@ -166,17 +165,14 @@ PYTHONPATH=. python -m pytest -q
 
 Live tenant/API validation is intentionally separate. Follow `docs/LIVE_VALIDATION.md` before production cutover.
 
-## Diagnostic probe (`probe/`)
+## Device behavior, tested without a device
 
-`probe/run_probe.py` drives this server against a real ION and writes the evidence — raw device
-output, findings, and what it trusted — into `probe/results/<run id>/`. It only sends commands the
-policy already permits and configures nothing on the device. It captures full raw device output on
-purpose, so point it at a device you are willing to expose.
+`tests/fixtures/ion/direct_*.txt` holds bytes captured verbatim from a live ION 1200 running
+6.3.6-b9 — the real ANSI escapes and the doubled command echo included. `tests/test_ion_replay.py`
+replays them through the real code path with no device attached, so read-termination and parsing
+bugs are reproduced and fixed without another trip to the lab.
 
-`probe/replay.py` needs no device: it replays captured device bytes through the real code path, so
-read-termination and parsing bugs can be reproduced and fixed without another trip to the lab.
-
-See `probe/README.md`.
+It needs no marker and no hardware: it runs in the ordinary suite above.
 
 ## Files to read first
 

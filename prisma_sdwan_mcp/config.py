@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 # whatever happens to be under the current working directory. Bare
 # `load_dotenv()` searches upward from the CWD, so the same install picks up
 # different configuration -- or none at all -- depending on where it was
-# launched from: a systemd unit with its own WorkingDirectory, a probe run out
-# of /tmp, or `cd /` before starting the server all silently lose the file.
+# launched from: a systemd unit with its own WorkingDirectory, a script run
+# out of /tmp, or `cd /` before starting the server all silently lose the file.
 # An explicit path behaves identically on Linux and Windows.
 #
 # Real environment variables still win: `override=False` is the default, so a
