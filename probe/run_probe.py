@@ -369,6 +369,85 @@ def call_run_commands(**kwargs) -> dict:
     return raw
 
 
+@detector("G6", "direct_capture")
+def probe_direct(host: str, port: int) -> None:
+    """Talk to the device with netmiko directly, bypassing this project entirely.
+
+    Every earlier run lost its device evidence to a bug in our own plumbing --
+    first a credential check, then host-key wiring -- and each cost a full
+    round trip to discover. This path shares no code with the MCP tool, so the
+    device's actual behaviour is captured even when the tool cannot reach it.
+
+    That separates two questions that kept getting confused: "is our wiring
+    right" and "what does this hardware actually do". G1 and G3 only ever
+    needed the second.
+    """
+    from netmiko import ConnectHandler
+
+    username = os.getenv("PRISMA_ION_USERNAME")
+    password = os.getenv("PRISMA_ION_PASSWORD")
+    known_hosts = os.getenv("PRISMA_ION_KNOWN_HOSTS") or None
+    if not username or not password:
+        record("G6", "direct_capture", "not_run",
+               {"note": "ION_USERNAME/ION_PASSWORD not set"})
+        return
+
+    kwargs: dict = {
+        "device_type": "generic", "host": host, "port": port,
+        "username": username, "password": password,
+        "conn_timeout": 20, "auth_timeout": 20, "banner_timeout": 20,
+        "allow_agent": False, "ssh_strict": True,
+        "system_host_keys": known_hosts is None,
+    }
+    if known_hosts:
+        kwargs["alt_host_keys"] = True
+        kwargs["alt_key_file"] = known_hosts
+
+    connection = ConnectHandler(**kwargs)
+    captured: list[dict] = []
+    try:
+        prompt = str(connection.find_prompt())
+        for label, command in (("small", CMD_SMALL), ("large", CMD_LARGE),
+                               ("rejected", CMD_REJECTED)):
+            started = time.time()
+            try:
+                output = str(connection.send_command(command, read_timeout=120))
+                error = None
+            except Exception as exc:  # noqa: BLE001 — capture, do not abort
+                output, error = "", f"{type(exc).__name__}: {exc}"
+            write(f"raw/direct_{label}.txt", output)
+            hits = scan_text(output)
+            lines = output.splitlines()
+            first_meaningful = next(
+                (i for i, line in enumerate(lines) if not re.match(r"^[\s^~]*$", line)),
+                None,
+            )
+            captured.append({
+                "label": label, "command": command,
+                "elapsed_s": round(time.time() - started, 2),
+                "error": error,
+                "bytes": len(output.encode("utf-8")),
+                "lines": len(lines),
+                "candidate_secret_hits": hits,
+                "candidate_hit_count": len(hits),
+                # G3 evidence: is the error on line one, or is something above it?
+                "first_lines_repr": [repr(line) for line in lines[:6]],
+                "first_meaningful_line_index": first_meaningful,
+                "has_preamble_above_first_content": bool(
+                    first_meaningful is not None and first_meaningful > 0
+                ),
+            })
+    finally:
+        connection.disconnect()
+
+    record("G6", "direct_capture", "proven", {
+        "prompt_repr": repr(prompt),
+        "note": "captured without any of this project's code in the path; use it to "
+                "answer G1/G3 even when the MCP tool failed",
+        "commands": captured,
+    })
+
+
 # ---------------------------------------------------------------------------
 # G1 — does redaction reach CLI text at all?
 # ---------------------------------------------------------------------------
@@ -733,6 +812,9 @@ def main() -> int:
         port = int(os.getenv("PRISMA_ION_SSH_PORT", "22") or 22)
         if probe_reachability(host, port):
             bootstrap_host_key(host, port)
+            # Device facts first, through a path that shares no code with the
+            # tool, so a bug in our wiring cannot cost this run its evidence.
+            probe_direct(host, port)
             probe_redaction(host)
             probe_error_detection(host)
             probe_truncation(host)

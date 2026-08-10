@@ -169,6 +169,16 @@ def build_connection_kwargs(
         "verbose": False,
     }
     if known_hosts_file is not None:
+        # Both flags are required. Netmiko loads the alternate file only under
+        # `if self.alt_host_keys and path.isfile(self.alt_key_file)`, so
+        # alt_key_file on its own is silently ignored -- and because
+        # system_host_keys is False whenever a file is supplied, that left NO
+        # host keys loaded at all and every connection failed as "not found in
+        # known_hosts". Fails closed, so it was never a security hole, but it
+        # made PRISMA_ION_KNOWN_HOSTS and the known_hosts_file argument
+        # completely non-functional: the only configuration that ever worked
+        # was the ~/.ssh/known_hosts default.
+        connection_kwargs["alt_host_keys"] = True
         connection_kwargs["alt_key_file"] = known_hosts_file
     if password is not None:
         connection_kwargs["password"] = password

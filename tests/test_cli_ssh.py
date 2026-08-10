@@ -600,3 +600,46 @@ def test_unreachable_probe_failure_is_never_retried():
     )
 
     assert len(attempts) == 1
+
+
+# ---------------------------------------------------------------------------
+# Host-key file wiring. Found by the second live probe run (probe/results/
+# 20260810T093155Z): every connection failed "not found in known_hosts" even
+# though a valid known_hosts had been written and PRISMA_ION_KNOWN_HOSTS set.
+# ---------------------------------------------------------------------------
+def test_a_supplied_known_hosts_file_is_actually_loaded():
+    """Netmiko gates the alternate key file behind a second flag:
+
+        if self.alt_host_keys and path.isfile(self.alt_key_file):
+            remote_conn_pre.load_host_keys(self.alt_key_file)
+
+    Setting alt_key_file alone is silently ignored. Since system_host_keys is
+    False whenever a file is supplied, that left no host keys loaded at all.
+    """
+    from prisma_sdwan_mcp.cli.ssh import build_connection_kwargs
+
+    kwargs = build_connection_kwargs(
+        host="10.0.0.1", port=22, username="svc", password="pw",
+        private_key=None, private_key_passphrase=None,
+        connect_timeout=10.0, read_timeout=60.0,
+        known_hosts_file="/etc/prisma/ion_known_hosts",
+    )
+
+    assert kwargs["alt_key_file"] == "/etc/prisma/ion_known_hosts"
+    assert kwargs["alt_host_keys"] is True, "alt_key_file without alt_host_keys is ignored"
+    assert kwargs["system_host_keys"] is False
+    assert kwargs["ssh_strict"] is True
+
+
+def test_without_a_known_hosts_file_the_system_default_is_used():
+    from prisma_sdwan_mcp.cli.ssh import build_connection_kwargs
+
+    kwargs = build_connection_kwargs(
+        host="10.0.0.1", port=22, username="svc", password="pw",
+        private_key=None, private_key_passphrase=None,
+        connect_timeout=10.0, read_timeout=60.0, known_hosts_file=None,
+    )
+
+    assert kwargs["system_host_keys"] is True
+    assert "alt_key_file" not in kwargs
+    assert kwargs["ssh_strict"] is True
