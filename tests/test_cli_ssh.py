@@ -745,3 +745,59 @@ def test_end_to_end_rejection_with_the_real_prompt_and_real_output():
 
     assert _is_device_error(rejection, prompt) is True
     assert _is_device_error(success, prompt) is False
+
+
+def test_the_completion_pattern_does_not_match_the_command_echo():
+    """A bare prompt pattern also matches 'AEDXB01-SDE01# dump interface ...',
+    the echo the device prints before any data, so the read terminated on the
+    echo and the command returned none of its output. It failed by timing --
+    a short answer arriving in the same chunk looked fine, an 11 KB one came
+    back as 81 bytes with status ok. Live run 20260810T095213Z."""
+    import re
+
+    from prisma_sdwan_mcp.cli.ssh import _completion_pattern
+
+    class FakeConnection:
+        def find_prompt(self):
+            return "AEDXB01-SDE01#  \x08"
+
+    pattern = re.compile(_completion_pattern(FakeConnection()))
+
+    assert not pattern.search("AEDXB01-SDE01# dump interface status all")
+    assert not pattern.search("AEDXB01-SDE01# dump overview")
+    assert pattern.search("AEDXB01-SDE01#")
+    assert pattern.search("AEDXB01-SDE01#  \x08")
+    assert pattern.search("Interface: lan1\nAEDXB01-SDE01# ")
+
+
+def test_the_completion_pattern_still_matches_a_pager():
+    import re
+
+    from prisma_sdwan_mcp.cli.ssh import _completion_pattern
+
+    class FakeConnection:
+        def find_prompt(self):
+            return "ION#"
+
+    pattern = re.compile(_completion_pattern(FakeConnection()))
+
+    assert pattern.search("some output\n--More--")
+
+
+def test_output_is_not_cut_short_by_its_own_echo():
+    """The regression in full: the whole body must survive the pattern."""
+    import re
+
+    from prisma_sdwan_mcp.cli.ssh import _completion_pattern
+
+    class FakeConnection:
+        def find_prompt(self):
+            return "AEDXB01-SDE01#  \x08"
+
+    body = (
+        "AEDXB01-SDE01# dump interface status all\n"
+        + "Interface\t: lan1\n" * 200
+    )
+    pattern = re.compile(_completion_pattern(FakeConnection()))
+
+    assert pattern.search(body) is None, "must read past the echo, not stop at it"

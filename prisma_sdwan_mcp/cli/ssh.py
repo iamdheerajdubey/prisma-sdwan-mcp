@@ -292,10 +292,24 @@ def _completion_pattern(connection: Any) -> str:
     irrelevant: `ping` emits a line per second and `dump` answers instantly,
     and both are read to completion by the same rule.
     """
-    prompt = str(connection.find_prompt()).strip()
+    prompt = _normalise_prompt(connection.find_prompt())
     if not prompt:
         raise IONCommandError("device did not present a shell prompt")
-    return rf"(?:{re.escape(prompt)}|{_PAGINATION_MARKER.pattern})"
+    # The prompt has to be anchored to a line of its own. A bare prompt pattern
+    # also matches the command echo -- the device replies
+    # 'AEDXB01-SDE01# dump interface status all' before any data -- so the read
+    # terminated on the echo and the command returned with none of its output.
+    # It failed by timing, which is worse than failing outright: a short answer
+    # arriving in the same chunk as the echo looked correct, while a longer one
+    # came back as 81 bytes of echo with status "ok" and truncated false.
+    #
+    # `[^\w\n]*$` allows the trailing spaces and control bytes a real prompt
+    # carries ('AEDXB01-SDE01#  \x08') while rejecting anything with a word
+    # character after it, which is exactly what an echoed command is.
+    # The (?m) flag has to lead the whole expression -- Python rejects an inline
+    # global flag anywhere else -- so it goes here rather than on the branch.
+    idle_prompt = rf"^{re.escape(prompt)}[^\w\n]*$"
+    return rf"(?m)(?:{idle_prompt}|(?:{_PAGINATION_MARKER.pattern}))"
 
 
 def _send_command_with_pagination(

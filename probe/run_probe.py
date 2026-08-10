@@ -677,7 +677,6 @@ def probe_transport_gate(host: str) -> None:
 @detector("G3", "device_error_shape")
 def probe_error_detection(host: str) -> None:
     from prisma_sdwan_mcp.cli.policy import validate_batch
-    from prisma_sdwan_mcp.cli.ssh import _is_device_error
 
     decision = validate_batch([CMD_REJECTED])
     if not decision.allowed:
@@ -709,8 +708,13 @@ def probe_error_detection(host: str) -> None:
     write("raw/rejected_output.txt", output)
 
     lines = output.splitlines()
-    detected = _is_device_error(output)
-    reported_ok = entry.get("ok") if isinstance(entry, dict) else None
+    # Read the tool's own verdict rather than re-deriving it. The detector used
+    # to call _is_device_error(output) with no prompt argument, which is not how
+    # the tool calls it, so it reported "detection did not fire" on a run where
+    # the tool had classified the rejection correctly -- the probe disagreeing
+    # with reality because it was testing a different thing.
+    detected = entry.get("status") == "error"
+    reported_ok = entry.get("status")
 
     # The exact question: is the error on the first line, or is something
     # printed above it? repr() so whitespace and control bytes are visible.
@@ -727,17 +731,21 @@ def probe_error_detection(host: str) -> None:
     )
     has_preamble = first_meaningful is not None and first_meaningful > 0
 
-    if has_preamble and not detected:
+    echoed_above_error = bool(lines) and any(
+        CMD_REJECTED in line for line in lines[:2]
+    )
+    if echoed_above_error and not detected:
         status, verdict = "proven", (
             f"The device printed {first_meaningful} non-substantive line(s) before its "
             "error text, and _is_device_error() — which reads only the first line — "
             "missed it. A rejected command is being reported as successful, exactly as "
             "it was on Cisco IOS."
         )
-    elif has_preamble and detected:
-        status, verdict = "inconclusive", (
-            "There is a preamble but detection still fired. Check WHY — it may be "
-            "matching by luck on this command and not on others."
+    elif echoed_above_error and detected:
+        status, verdict = "disproven", (
+            "The device echoes the prompt and command above its error, and the tool "
+            "still classified the command as failed. The echo-skipping fix holds on "
+            "real output."
         )
     elif not lines:
         status, verdict = "inconclusive", (
@@ -763,7 +771,7 @@ def probe_error_detection(host: str) -> None:
         "is_device_error_returned": detected,
         "line_count": len(lines),
         "first_meaningful_line_index": first_meaningful,
-        "has_preamble_above_the_error": has_preamble,
+        "echo_above_the_error": echoed_above_error,
         "first_lines_repr": preamble,
         "full_output_repr": repr(output[:4000]),
     })
