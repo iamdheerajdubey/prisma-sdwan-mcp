@@ -811,11 +811,69 @@ def probe_truncation(host: str) -> None:
     })
 
 
+@detector("G7", "read_stability")
+def probe_stability(host: str, repeats: int = 5) -> None:
+    """Run the same commands repeatedly and check the answers are identical.
+
+    The worst bug in this whole exercise was a race, not a wrong result: the
+    device echoes 'PROMPT# command' before any data, the read terminated on
+    that echo, and whether it did depended on whether the real output had
+    arrived in the same channel read. `dump overview` returned 1627 bytes in
+    one live run and 82 -- its own echo -- in the next, from identical code,
+    with status "ok" both times.
+
+    A single green run says nothing about a bug like that. Repeating the same
+    command and comparing byte counts is what turns "it worked when I looked"
+    into evidence. Any variation at all is a failure: the same command against
+    an idle device must return the same bytes.
+    """
+    observations: dict[str, list[int]] = {}
+    for label, command in (("small", CMD_SMALL), ("large", CMD_LARGE)):
+        sizes: list[int] = []
+        for _ in range(repeats):
+            response = call_run_commands(host=host, commands=[command])
+            failure = tool_error(response)
+            if failure:
+                record("G7", "read_stability", "not_run", {
+                    "command": command, "tool_error": failure,
+                    "message": response.get("message"),
+                })
+                return
+            results = _results_of(response)
+            body = results[0].get("output") or results[0].get("error") or "" if results else ""
+            sizes.append(len(body.encode("utf-8")))
+        observations[label] = sizes
+
+    unstable = {k: v for k, v in observations.items() if len(set(v)) > 1}
+    tiny = {k: v for k, v in observations.items() if min(v) < 200}
+
+    if unstable:
+        status, verdict = "proven", (
+            f"The same command returned different byte counts across {repeats} runs: "
+            f"{unstable}. The read is still terminating early some of the time -- this "
+            "is the echo race, not a device difference."
+        )
+    elif tiny:
+        status, verdict = "proven", (
+            f"Output was consistently tiny: {tiny}. Consistent is not correct -- compare "
+            "against raw/direct_*.txt, which bypasses the tool. If those are large and "
+            "these are not, every read is stopping at the echo."
+        )
+    else:
+        status, verdict = "disproven", (
+            f"{repeats} consecutive runs of each command returned identical byte counts "
+            f"({observations}). The echo race does not reproduce."
+        )
+    record("G7", "read_stability", status, {
+        "repeats": repeats, "byte_counts": observations, "verdict": verdict,
+    })
+
+
 @detector("G5", "name_resolution")
 def probe_name_resolution(element: str | None) -> None:
     if not element:
         record("G5", "name_resolution", "not_run", {
-            "note": "PRISMA_PROBE_ELEMENT is unset, so the controller-backed "
+            "note": "ION_ELEMENT is unset, so the controller-backed "
                     "name-to-address path was not exercised. This is not evidence "
                     "that it works.",
         })
@@ -871,11 +929,13 @@ def main() -> int:
             probe_redaction(host)
             probe_error_detection(host)
             probe_truncation(host)
+            probe_stability(host)
             probe_transport_gate(host)
             probe_name_resolution(element)
         else:
             for gap, name in (("G1", "text_redaction"), ("G3", "device_error_shape"),
-                              ("G4", "truncation_and_caps"), ("G5", "name_resolution")):
+                              ("G4", "truncation_and_caps"), ("G5", "name_resolution"),
+                              ("G7", "read_stability")):
                 record(gap, name, "not_run", {"note": "ION unreachable from this host"})
             # The transport gate needs the server, not the device — still worth running.
             probe_transport_gate(host)
