@@ -1,0 +1,44 @@
+AEDXB01-SDE01# dump overview
+AEDXB01-SDE01# dump overview
+Software			: 6.3.6-b9
+Hardware Model			: ion 1200-s-c5g-ww
+Hardware Version		: 1.1
+Time Now			: 2026-08-10 09:52:29
+Uptime				: 886h26m9.68s
+Last Reboot Reason		: unknown
+Device ID			: 027901-004448-2669
+Registration State		: Assigned
+Registration Name		: AEDXB01-SDE01
+Description			: 
+Element ID			: 1743451497200008896
+Site ID				: 1743465303015010196
+Site Name			: AEDXB01
+Role				: SPOKE
+Tenant ID			: 1593498799
+Site Mode			: in-path
+Site State			: active
+Spoke HA			: true
+Element State			: active
+Simple State			: active
+Controller Connection		: Up [CIC]
+Controller			: controller.hood.cgnx.net [52.32.167.5 54.70.168.33]
+Stats Connection		: Up [sdwan-stats-hood-us.cgnx.net] [34.102.90.252]
+Flows Connection		: Up [sdwan-stats-hood-us.cgnx.net] [34.102.90.252]
+MIC Certificate			: valid until 2044-08-22 03:07:37 +0000 UTC
+Claim Certificate		: valid until 2035-03-29 20:05:02 +0000 UTC
+L3 Direct Private WAN forwarding: true
+L3 LAN forwarding		: true
+
+operational interfaces
+3			: addr 151.253.182.114/29 gw 151.253.182.113 (public)
+4			: no address
+4.300			: addr 10.64.167.4/26 (lan)
+4.333			: addr 10.64.167.81/30 (control)
+4.600			: addr 100.65.96.1/22 (lan)
+4.601			: addr 100.81.96.1/22 (lan)
+1			: addr 151.253.182.106/29 gw 151.253.182.105 (public)
+2			: no address (public)
+AEDXB01_INET-1_BKP_SL	: addr 172.21.0.252/31 gw 172.21.0.252
+AEDXB01_INET-2_BKP_SL	: addr 172.21.0.254/31 gw 172.21.0.254
+AEDXB01_INET-1_ACT_SL	: addr 172.21.0.248/31 gw 172.21.0.248
+AEDXB01_INET-2_ACT_SL	: addr 172.21.0.250/31 gw 172.21.0.250

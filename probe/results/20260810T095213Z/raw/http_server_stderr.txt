@@ -1,0 +1,10 @@
+Prisma SD-WAN MCP v2 (streamable-http) - 308 registry actions + 8 curated compatibility actions
+[08/10/26 09:52:42] INFO     Starting MCP server 'Prisma SD-WAN MCP v2' with transport 'streamable-http' on http://127.0.0.1:43943/mcp transport.py:361
+INFO:     Started server process [1525426]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:43943 (Press CTRL+C to quit)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [1525426]

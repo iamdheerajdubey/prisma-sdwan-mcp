@@ -1,0 +1,41 @@
+{
+  "run_id": "20260810T095213Z",
+  "platform": "Linux-6.8.0-1064-azure-x86_64-with-glibc2.35",
+  "system": "Linux",
+  "python": "3.10.12 (main, Jun 22 2026, 18:55:27) [GCC 11.4.0]",
+  "python_executable": "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2/.venv/bin/python3",
+  "cwd": "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2",
+  "repo": "/home/dheeraj.dubey@gmgmt.cloud/Documents/prisma-sdwan-mcpv2",
+  "os_user": "dheeraj.dubey@global.ntt",
+  "home": "/home/dheeraj.dubey@gmgmt.cloud",
+  "path_separator": "/",
+  "versions": {
+    "netmiko": "4.7.0",
+    "paramiko": "4.0.0",
+    "fastmcp": "3.4.4",
+    "prisma_sase": "6.8.1b1"
+  },
+  "ion_credentials": {
+    "username_set": true,
+    "password_set": true,
+    "private_key_set": false,
+    "passphrase_set": false
+  },
+  "controller_credentials": {
+    "PAN_CLIENT_ID": false,
+    "PAN_CLIENT_SECRET": false,
+    "PAN_TSG_ID": false
+  },
+  "known_hosts": {
+    "configured": null,
+    "default_used": true,
+    "default_path": "/home/dheeraj.dubey@gmgmt.cloud/.ssh/known_hosts",
+    "default_exists": true
+  },
+  "probe_target": {
+    "host": "10.64.167.4",
+    "element": null
+  },
+  "ssh_port": 22,
+  "max_output_bytes": 40960
+}
