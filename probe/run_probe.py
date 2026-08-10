@@ -338,6 +338,22 @@ def bootstrap_host_key(host: str, port: int) -> None:
 # ---------------------------------------------------------------------------
 # Tool invocation helper — drives the real MCP tool in-process
 # ---------------------------------------------------------------------------
+def tool_error(response: dict) -> str | None:
+    """Return the tool's error code, if the call failed before reaching the device.
+
+    Every device detector must check this first. A failed call carries an empty
+    result list, and reading that as "the device returned nothing" turns a
+    configuration mistake into a confident statement about the hardware -- which
+    is exactly what the first live run did: three detectors reported
+    "inconclusive, no output" when the real cause was a rejected credential set.
+    An error is a `not_run`, never evidence.
+    """
+    if not isinstance(response, dict):
+        return None
+    code = response.get("code") or response.get("error")
+    return str(code) if code else None
+
+
 def call_run_commands(**kwargs) -> dict:
     """Call the real run_commands tool and return its parsed response."""
     from prisma_sdwan_mcp import runtime
@@ -365,6 +381,18 @@ def probe_redaction(host: str) -> None:
         started = time.time()
         response = call_run_commands(host=host, commands=[command])
         elapsed = round(time.time() - started, 2)
+
+        failure = tool_error(response)
+        if failure:
+            write(f"raw/{label}_response.json", json.dumps(response, indent=2))
+            record("G1", "text_redaction", "not_run", {
+                "command": command,
+                "tool_error": failure,
+                "message": response.get("message"),
+                "note": "the call never reached the device, so nothing here says anything "
+                        "about redaction. Fix the error and re-run.",
+            })
+            return
 
         write(f"raw/{label}_response.json", json.dumps(response, indent=2))
         results = response.get("results") or response.get("data") or []
@@ -548,6 +576,17 @@ def probe_error_detection(host: str) -> None:
     response = call_run_commands(host=host, commands=[CMD_REJECTED])
     write("raw/rejected_response.json", json.dumps(response, indent=2))
 
+    failure = tool_error(response)
+    if failure:
+        record("G3", "device_error_shape", "not_run", {
+            "command": CMD_REJECTED,
+            "tool_error": failure,
+            "message": response.get("message"),
+            "note": "the call never reached the device. Its error shape is still unknown; "
+                    "this is not 'the device returned nothing'.",
+        })
+        return
+
     results = response.get("results") or response.get("data") or []
     entry = results[0] if isinstance(results, list) and results else {}
     output = entry.get("output") or entry.get("stdout") or "" if isinstance(entry, dict) else ""
@@ -620,6 +659,13 @@ def probe_error_detection(host: str) -> None:
 @detector("G4", "truncation_and_caps")
 def probe_truncation(host: str) -> None:
     response = call_run_commands(host=host, commands=[CMD_LARGE])
+    failure = tool_error(response)
+    if failure:
+        record("G4", "truncation_and_caps", "not_run", {
+            "tool_error": failure, "message": response.get("message"),
+            "note": "the call never reached the device",
+        })
+        return
     results = response.get("results") or response.get("data") or []
     entry = results[0] if isinstance(results, list) and results else {}
     output = entry.get("output", "") if isinstance(entry, dict) else ""

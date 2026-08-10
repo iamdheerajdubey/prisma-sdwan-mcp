@@ -90,12 +90,25 @@ def data_dir() -> Path:
     return Path(__file__).resolve().parent / "data"
 
 
+def _unset(name: str) -> str | None:
+    """Read an env var, treating blank as absent.
+
+    A .env file spells "not configured" as ``PRISMA_ION_PRIVATE_KEY=``, and
+    os.getenv returns ``''`` for that, not None. Callers here decide "exactly
+    one of password or private key" with an ``is None`` comparison, so a blank
+    line reads as a *configured* private key: a deployment with a password and
+    the stock .env is refused as having supplied both. Blank is absent.
+    """
+    value = os.getenv(name)
+    return value if (value or "").strip() else None
+
+
 def get_ion_credentials() -> tuple[str | None, str | None, str | None, str | None]:
     return (
-        os.getenv("PRISMA_ION_USERNAME"),
-        os.getenv("PRISMA_ION_PASSWORD"),
-        os.getenv("PRISMA_ION_PRIVATE_KEY"),
-        os.getenv("PRISMA_ION_PRIVATE_KEY_PASSPHRASE"),
+        _unset("PRISMA_ION_USERNAME"),
+        _unset("PRISMA_ION_PASSWORD"),
+        _unset("PRISMA_ION_PRIVATE_KEY"),
+        _unset("PRISMA_ION_PRIVATE_KEY_PASSPHRASE"),
     )
 
 

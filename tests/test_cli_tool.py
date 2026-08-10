@@ -263,3 +263,47 @@ def test_no_credential_value_appears_in_any_response(monkeypatch):
     monkeypatch.setattr(cli, "get_ion_credentials", _no_call)
     denied_response = cli.run_commands(commands=["debug reboot"], host="10.0.0.9")
     assert "s3cr3t-value" not in denied_response
+
+
+def test_blank_private_key_in_env_does_not_block_password_auth(monkeypatch):
+    """A .env spells "not configured" as `PRISMA_ION_PRIVATE_KEY=`, which
+    os.getenv returns as '' rather than None. The credential check decides
+    "exactly one of password or private key" with `is None`, so a blank line
+    used to read as a configured private key and refuse a perfectly good
+    password. Shipping .env.example with that blank line made the tool
+    unusable for anyone who followed the documented setup.
+
+    Found by probe/run_probe.py against a live ION on 2026-08-10.
+    """
+    from prisma_sdwan_mcp.tools.cli import _effective_credentials
+
+    monkeypatch.setenv("PRISMA_ION_USERNAME", "admin")
+    monkeypatch.setenv("PRISMA_ION_PASSWORD", "secret")
+    monkeypatch.setenv("PRISMA_ION_PRIVATE_KEY", "")
+    monkeypatch.setenv("PRISMA_ION_PRIVATE_KEY_PASSPHRASE", "")
+
+    result = _effective_credentials(None, None, None, None)
+
+    assert not isinstance(result, str), "blank private key must not read as configured"
+    assert result == ("admin", "secret", None, None)
+
+
+def test_whitespace_only_credential_is_also_absent(monkeypatch):
+    from prisma_sdwan_mcp.tools.cli import _effective_credentials
+
+    monkeypatch.setenv("PRISMA_ION_USERNAME", "admin")
+    monkeypatch.setenv("PRISMA_ION_PASSWORD", "secret")
+    monkeypatch.setenv("PRISMA_ION_PRIVATE_KEY", "   ")
+
+    assert _effective_credentials(None, None, None, None) == ("admin", "secret", None, None)
+
+
+def test_both_credentials_genuinely_set_is_still_refused(monkeypatch):
+    # The fix must not weaken the real check it was protecting.
+    from prisma_sdwan_mcp.tools.cli import _effective_credentials
+
+    monkeypatch.setenv("PRISMA_ION_USERNAME", "admin")
+    monkeypatch.setenv("PRISMA_ION_PASSWORD", "secret")
+    monkeypatch.setenv("PRISMA_ION_PRIVATE_KEY", "/keys/id_ed25519")
+
+    assert _effective_credentials(None, None, None, None) == "config"
