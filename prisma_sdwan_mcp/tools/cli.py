@@ -29,6 +29,11 @@ _CONNECTION_ERROR_CODES = {
     "unreachable": "device_unreachable",
     "host_key": "host_key_unverified",
     "authentication": "device_authentication_failed",
+    # The device dropped the session before its version string. It is a rate
+    # limit and it clears on its own, so it maps to the one code response.py
+    # already marks retryable -- every other failure here is permanent, and
+    # telling a caller to stop when it should pause is the wrong advice.
+    "rate_limited": "rate_limited",
     "connection": "device_connection_failed",
     "validation": "invalid_argument",
 }

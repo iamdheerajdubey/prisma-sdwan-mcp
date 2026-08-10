@@ -801,3 +801,43 @@ def test_output_is_not_cut_short_by_its_own_echo():
     pattern = re.compile(_completion_pattern(FakeConnection()))
 
     assert pattern.search(body) is None, "must read past the echo, not stop at it"
+
+
+# ---------------------------------------------------------------------------
+# Device-side rate limiting. Measured on a live ion 1200 (probe run
+# 20260810T105544Z): four consecutive SSH sessions succeeded, the fifth was
+# reset before the version string. A session is opened per call, so an
+# assistant answering about several sites meets this in ordinary use.
+# ---------------------------------------------------------------------------
+def test_a_banner_reset_is_classified_as_rate_limited():
+    from prisma_sdwan_mcp.cli.ssh import _is_connection_refused_by_device
+
+    real = Exception(
+        "\nA paramiko SSHException occurred during connection creation:\n\n"
+        "Error reading SSH protocol banner[Errno 104] Connection reset by peer\n\n"
+    )
+
+    assert _is_connection_refused_by_device(real) is True
+
+
+def test_ordinary_connection_failures_are_not_rate_limits():
+    from prisma_sdwan_mcp.cli.ssh import _is_connection_refused_by_device
+
+    for message in ("No route to host", "timed out", "Authentication failed",
+                    "not found in known_hosts"):
+        assert _is_connection_refused_by_device(Exception(message)) is False
+
+
+def test_rate_limited_is_reported_as_retryable():
+    """Every other connection failure here is permanent. This one clears on
+    its own, and the caller needs to know the difference."""
+    import json
+
+    from prisma_sdwan_mcp.response import structured_error
+
+    payload = structured_error("rate_limited", "device dropped the session", "run_commands")
+    permanent = structured_error("device_connection_failed", "no route", "run_commands")
+
+    assert payload["retryable"] is True
+    assert permanent["retryable"] is False
+    json.dumps(payload)

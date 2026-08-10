@@ -270,6 +270,32 @@ def _is_authentication_error(error: BaseException) -> bool:
     return "auth" in error_name or "authentication" in error_text
 
 
+def _is_connection_refused_by_device(error: BaseException) -> bool:
+    """True when the device accepted the TCP connection then dropped it.
+
+    An ION refuses roughly the fifth SSH session opened in quick succession,
+    and does it by resetting the socket before sending its version string:
+
+        Error reading SSH protocol banner[Errno 104] Connection reset by peer
+
+    That is a rate limit, not a broken device or a bad address, and it is
+    worth separating for two reasons. A session is opened per call, so an
+    assistant answering a question about several sites reaches the limit
+    during ordinary use. And unlike every other connection failure here, this
+    one clears on its own -- reporting it as a permanent `connection` error
+    tells the caller to stop when it should pause and retry.
+
+    Measured on a live ion 1200 (probe run 20260810T105544Z): four consecutive
+    sessions succeeded, the fifth was reset.
+    """
+    text = str(error).lower()
+    return (
+        "error reading ssh protocol banner" in text
+        or "connection reset by peer" in text
+        or "connection aborted" in text
+    )
+
+
 def _is_host_key_error(error: BaseException) -> bool:
     error_name = error.__class__.__name__.lower()
     error_text = str(error).lower()
@@ -447,6 +473,8 @@ def execute_commands(
                 error_type = "host_key"
             elif _is_authentication_error(error):
                 error_type = "authentication"
+            elif _is_connection_refused_by_device(error):
+                error_type = "rate_limited"
             else:
                 error_type = "connection"
             message, error_truncated = _safe_error_message_details(error, secrets)

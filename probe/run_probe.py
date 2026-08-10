@@ -816,7 +816,7 @@ def probe_truncation(host: str) -> None:
 
 
 @detector("G7", "read_stability")
-def probe_stability(host: str, repeats: int = 5) -> None:
+def probe_stability(host: str, repeats: int = 3) -> None:
     """Run the same commands repeatedly and check the answers are identical.
 
     The worst bug in this whole exercise was a race, not a wrong result: the
@@ -840,7 +840,7 @@ def probe_stability(host: str, repeats: int = 5) -> None:
                 # back to back ("Error reading SSH protocol banner ... reset by
                 # peer"). One session per call is the design; hammering it is
                 # the probe's fault, not the device's.
-                time.sleep(2.0)
+                time.sleep(5.0)
             response = call_run_commands(host=host, commands=[command])
             failure = tool_error(response)
             if failure:
@@ -866,7 +866,13 @@ def probe_stability(host: str, repeats: int = 5) -> None:
             sizes.append(len(body.encode("utf-8")))
         observations[label] = sizes
 
-    unstable = {k: v for k, v in observations.items() if len(set(v)) > 1}
+    # A tolerance, not exact equality: `dump overview` carries an uptime
+    # counter, so byte counts drift by a digit between runs. The failure this
+    # looks for is an order of magnitude (1627 vs 82), never one byte.
+    unstable = {
+        k: v for k, v in observations.items()
+        if v and (max(v) - min(v)) > max(64, max(v) // 20)
+    }
     tiny = {k: v for k, v in observations.items() if min(v) < 200}
 
     if unstable:
@@ -951,9 +957,11 @@ def main() -> int:
             probe_redaction(host)
             probe_error_detection(host)
             probe_truncation(host)
-            probe_stability(host)
             probe_transport_gate(host)
             probe_name_resolution(element)
+            # Last: this one deliberately pushes the device until it refuses,
+            # and in run 7 the refusal was still in force when G5 ran after it.
+            probe_stability(host)
         else:
             for gap, name in (("G1", "text_redaction"), ("G3", "device_error_shape"),
                               ("G4", "truncation_and_caps"), ("G5", "name_resolution"),
