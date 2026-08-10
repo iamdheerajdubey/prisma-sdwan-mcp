@@ -178,3 +178,36 @@ def test_unresolvable_element_name_is_a_distinct_error(monkeypatch):
 
     with pytest.raises(ResolutionError):
         address.resolve_device_address("no-such-element")
+
+
+# ---------------------------------------------------------------------------
+# RFC 6598 shared address space. Found by probe run 20260810T104737Z: a live
+# ion 1200 had no `controller` interface and three live `lan` ones, so name
+# resolution refused as ambiguous and name-based addressing did not work on
+# that device at all. Two of the three were 100.64/10 -- Prisma's service-link
+# and tunnel plumbing, not somewhere anyone can SSH to.
+# ---------------------------------------------------------------------------
+import pytest
+
+from prisma_sdwan_mcp.cli.address import _is_shared_address_space
+
+
+@pytest.mark.parametrize(
+    "address, shared",
+    [
+        ("10.64.167.4", False),      # the address that actually answers SSH
+        ("100.65.96.1", True),       # service link, from the live device
+        ("100.81.96.1", True),       # service link, from the live device
+        ("100.64.0.0", True),        # first address in the range
+        ("100.127.255.255", True),   # last address in the range
+        ("100.63.255.255", False),   # one below
+        ("100.128.0.0", False),      # one above
+        ("192.168.1.1", False),
+        ("10.0.0.1", False),
+        ("", False),
+        ("not-an-address", False),
+        ("999.1.1.1", False),
+    ],
+)
+def test_shared_address_space_boundaries(address, shared):
+    assert _is_shared_address_space(address) is shared

@@ -37,6 +37,34 @@ from ..tools.common import execute, records, site_element
 # address and is never a candidate.
 MANAGEMENT_ROLES = ("controller", "lan")
 
+# RFC 6598 shared address space, 100.64.0.0/10. Prisma SD-WAN uses it for
+# service-link and tunnel endpoints, so an address in this range is internal
+# plumbing rather than somewhere an operator can SSH to.
+#
+# On a live ion 1200 the element had no `controller` interface at all and three
+# live `lan` ones -- 10.64.167.4, 100.65.96.1 and 100.81.96.1 -- so resolution
+# refused as ambiguous and name-based addressing did not work on that device.
+# Two of those three are 100.64/10. Excluding the range leaves exactly the
+# address that actually answers SSH.
+_SHARED_ADDRESS_SPACE = (100 << 24 | 64 << 16, 10)  # (network int, prefix length)
+
+
+def _is_shared_address_space(address: str) -> bool:
+    """True for an IPv4 address inside 100.64.0.0/10."""
+    parts = address.split(".")
+    if len(parts) != 4:
+        return False
+    try:
+        octets = [int(part) for part in parts]
+    except ValueError:
+        return False
+    if any(octet < 0 or octet > 255 for octet in octets):
+        return False
+    value = octets[0] << 24 | octets[1] << 16 | octets[2] << 8 | octets[3]
+    network, prefix = _SHARED_ADDRESS_SPACE
+    mask = (0xFFFFFFFF << (32 - prefix)) & 0xFFFFFFFF
+    return value & mask == network & mask
+
 
 def _live_addresses(site_id: str, element_id: str, interface_id: str) -> tuple[list[str], str | None]:
     """Return (addresses, operational_state) from the interface's status record."""
@@ -84,8 +112,9 @@ def resolve_device_address(element: str, site: str | None = None) -> dict[str, A
                     "address": address,
                     "operational_state": operational_state,
                 }
+                candidate["shared_address_space"] = _is_shared_address_space(address)
                 seen.append(candidate)
-                if operational_state == "up":
+                if operational_state == "up" and not candidate["shared_address_space"]:
                     candidates.append(candidate)
         if len(candidates) == 1:
             chosen = candidates[0]

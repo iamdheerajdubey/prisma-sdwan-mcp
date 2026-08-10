@@ -392,12 +392,16 @@ def probe_direct(host: str, port: int) -> None:
     """
     from netmiko import ConnectHandler
 
-    username = os.getenv("PRISMA_ION_USERNAME")
-    password = os.getenv("PRISMA_ION_PASSWORD")
-    known_hosts = os.getenv("PRISMA_ION_KNOWN_HOSTS") or None
+    # Read through config so the short ION_* names work here too. Reading the
+    # long PRISMA_ION_* names directly made this report "credentials not set"
+    # on a run where they plainly were.
+    from prisma_sdwan_mcp.config import get_ion_credentials, get_ion_known_hosts
+
+    username, password, _key, _passphrase = get_ion_credentials()
+    known_hosts = get_ion_known_hosts()
     if not username or not password:
         record("G6", "direct_capture", "not_run",
-               {"note": "ION_USERNAME/ION_PASSWORD not set"})
+               {"note": "ION_USERNAME / ION_PASSWORD are not set"})
         return
 
     kwargs: dict = {
@@ -830,13 +834,31 @@ def probe_stability(host: str, repeats: int = 5) -> None:
     observations: dict[str, list[int]] = {}
     for label, command in (("small", CMD_SMALL), ("large", CMD_LARGE)):
         sizes: list[int] = []
-        for _ in range(repeats):
+        for attempt in range(repeats):
+            if attempt:
+                # The ION reset the connection when this ran ten sessions
+                # back to back ("Error reading SSH protocol banner ... reset by
+                # peer"). One session per call is the design; hammering it is
+                # the probe's fault, not the device's.
+                time.sleep(2.0)
             response = call_run_commands(host=host, commands=[command])
             failure = tool_error(response)
             if failure:
-                record("G7", "read_stability", "not_run", {
-                    "command": command, "tool_error": failure,
+                reset = "banner" in str(response.get("message", "")).lower()
+                record("G7", "read_stability", "proven" if reset else "not_run", {
+                    "command": command,
+                    "attempt": attempt + 1,
+                    "sizes_before_failure": sizes,
+                    "tool_error": failure,
                     "message": response.get("message"),
+                    "verdict": (
+                        "The device refused a repeated SSH connection. A session is "
+                        "opened per call, so an assistant making several calls in quick "
+                        "succession will hit this. The tool should report it as a "
+                        "device-side rate limit rather than a generic connection failure."
+                        if reset else
+                        "The call failed before reaching the device; stability is unknown."
+                    ),
                 })
                 return
             results = _results_of(response)
