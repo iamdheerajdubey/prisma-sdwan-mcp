@@ -1,0 +1,27 @@
+name: prisma-sdwan-tshoot-agent
+display_name: Prisma SD-WAN Troubleshooter
+purpose: Evidence-driven interactive troubleshooting for Prisma SD-WAN site, tunnel, underlay, HA, controller, and path-quality incidents.
+
+llm:
+  selection: runtime-configured
+  requirements:
+    - tool-calling
+    - skill-loading
+    - sufficient context for multi-step troubleshooting
+
+system_prompt: system_prompt.md
+skill: ../skills/prisma-sdwan-tshoot
+
+mcp:
+  server: prisma-sdwan-mcp
+  transport: stdio
+  command: prisma-sdwan-mcp
+  args:
+    - --transport
+    - stdio
+
+behavior:
+  interface: conversational
+  itsm_integration: disabled
+  configuration_mutation: disabled
+  troubleshooting_mode: hypothesis-driven

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Prisma SD-WAN Troubleshooter"
+  short_description: "Evidence-driven Prisma SD-WAN site, tunnel, underlay, HA, and path-quality troubleshooting."
