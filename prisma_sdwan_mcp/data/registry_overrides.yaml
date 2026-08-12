@@ -1,0 +1,81 @@
+# Human/operator aliases and safety hints. The source registry remains untouched.
+resource_aliases:
+  site:
+    action_id: sites_devices.sites
+    match_fields: [name, display_name]
+    projection: [id, name, display_name, admin_state, location]
+  element:
+    action_id: sites_devices.elements
+    match_fields: [name, serial_number, hw_id]
+    projection: [id, name, site_id, serial_number, model_name, software_version, connected, state]
+  machine:
+    action_id: platform_specialized.machines
+    match_fields: [name, hw_id, serial_number, sl_no]
+    projection: [id, name, hw_id, sl_no, model_name, image_version, machine_state, connected, em_element_id]
+  application:
+    action_id: security_policies.appdefs
+    match_fields: [display_name, name]
+    projection: [id, display_name, name, category]
+  security_zone:
+    action_id: security_policies.securityzones
+    match_fields: [name, description]
+    projection: [id, name, description]
+  wan_network:
+    action_id: vpn_wan.wannetworks
+    match_fields: [name, description]
+    projection: [id, name, description, type]
+  path_group:
+    action_id: network_priority_policies.pathgroups
+    match_fields: [name, description]
+    projection: [id, name, description]
+  service_label:
+    action_id: service_connections_extensions.servicelabels
+    match_fields: [name, description]
+    projection: [id, name, description]
+  vrf:
+    action_id: vpn_wan.vrfcontexts
+    match_fields: [name, description]
+    projection: [id, name, description]
+  network_policy:
+    action_id: network_priority_policies.networkpolicysets
+    match_fields: [name, description]
+    projection: [id, name, description]
+  priority_policy:
+    action_id: network_priority_policies.prioritypolicysets
+    match_fields: [name, description]
+    projection: [id, name, description]
+  nat_policy:
+    action_id: nat_policies.natpolicysets
+    match_fields: [name, description]
+    projection: [id, name, description]
+  security_policy:
+    action_id: security_policies.ngfwsecuritypolicysets
+    match_fields: [name, description]
+    projection: [id, name, description]
+  performance_policy:
+    action_id: performance_management.perfmgmtpolicysets
+    match_fields: [name, description]
+    projection: [id, name, description]
+
+# Keys matching these names are removed recursively before data is returned to AI.
+sensitive_key_patterns:
+  - password
+  - passwd
+  - secret
+  - token
+  - session_id
+  - token_session
+  - private_key
+  - privatekey
+  - passphrase
+  - community_string
+  - auth_token
+  - authtoken
+  - client_secret
+
+# Curated actions blocked from generic expert execution until live-tested
+# (MCP_ALLOW_UNVERIFIED_COMPAT=true overrides). All eight were live-validated on
+# 2026-08-07 against a real tenant - see docs/LIVE_VALIDATION.md Step 6 and
+# tmp/findings/r2_curated.md - so the list is now empty. Add an action_id back
+# here if a future curated capability ships unverified.
+expert_blocked_by_default: []

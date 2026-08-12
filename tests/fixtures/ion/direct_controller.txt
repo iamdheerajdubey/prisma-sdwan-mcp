@@ -1,0 +1,4 @@
+[31mAEDXB01-SDE01#[0m dump controller[J[2K
+[31mAEDXB01-SDE01#[0m dump controller
+incomplete command
+[J[2K

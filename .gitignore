@@ -1,45 +1,9 @@
-# Environment & secrets
 .env
-.env.*
-!.env.example
-
-# Python bytecode
-__pycache__/
-*.py[cod]
-*$py.class
-
-# Virtual environments
 .venv/
-venv/
-env/
-ENV/
-
-# Distribution / packaging
-build/
+__pycache__/
+*.pyc
 dist/
+build/
 *.egg-info/
-*.egg
-.eggs/
-
-# IDE / editor
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Type checking / linting
-.mypy_cache/
-.ruff_cache/
-.pytest_cache/
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Agent context (internal)
-AGENTS.md
-.sisyphus/
-TOOL_REVIEW_GUIDE.md
-.claude/
-.opencode/
+generated/
+tmp/

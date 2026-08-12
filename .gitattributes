@@ -1,0 +1,21 @@
+# Line endings are a repository property, not a per-developer setting.
+#
+# Without this file the result depends on each contributor's local
+# core.autocrlf. A Windows checkout with autocrlf=false commits CRLF, and the
+# same tree then behaves differently on the Linux host that runs the probe and
+# the server. Normalising in the repository makes the platform irrelevant.
+* text=auto eol=lf
+
+# Data the tools parse byte-for-byte, and fixtures whose exact bytes are the
+# point of the test.
+*.json  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.md    text eol=lf
+*.py    text eol=lf
+
+# Never rewrite these.
+*.png   binary
+*.jpg   binary
+*.gz    binary
+*.zip   binary

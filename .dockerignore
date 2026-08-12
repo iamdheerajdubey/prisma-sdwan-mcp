@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+*.pyc
+.env
+tests/
+docs/
+openspec/
+.claude/
+requirements.txt
+README.md
+CLAUDE.md

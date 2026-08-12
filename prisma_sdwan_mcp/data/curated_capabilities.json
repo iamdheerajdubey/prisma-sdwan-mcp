@@ -1,0 +1,194 @@
+{
+  "metadata": {
+    "purpose": "Read-only SDK capabilities that fill gaps in mcp_registry_get_post.json, added by hand because operator tooling depends on them.",
+    "requires_live_test": false,
+    "live_validated": "2026-08-07, round-2 AI-consumption audit: all eight executed against a live tenant through read_capability and their semantic tools. Body schemas below were filled in from the request bodies the semantic tools actually send, which are the known-good forms. See tmp/findings/r2_curated.md."
+  },
+  "actions": [
+    {
+      "action_id": "compat.topology",
+      "domain": "curated",
+      "sdk_call": "topology",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": ["anynet"],
+            "description": "Only 'anynet' is accepted. Note this is NOT the same vocabulary as get_topology's `view` argument - that tool's 'basenet' view is built from an 'anynet' query plus per-leg status calls."
+          }
+        },
+        "required": ["type"]
+      },
+      "output_fields": ["nodes", "links"],
+      "description": "AnyNet topology query. Returns the full node/link graph in one object; prefer the get_topology tool, which pages it.",
+      "requires_live_test": false
+    },
+    {
+      "action_id": "compat.events_query",
+      "domain": "curated",
+      "sdk_call": "events_query",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {
+        "type": "object",
+        "properties": {
+          "severity": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Severity names, e.g. ['critical','major','minor']."
+          },
+          "limit": {
+            "type": "object",
+            "description": "Result cap and ordering, e.g. {\"count\": 100, \"sort_on\": \"time\", \"sort_order\": \"descending\"}. Max count is 100."
+          },
+          "query": {
+            "type": "object",
+            "description": "Scope filter, e.g. {\"site\": [\"<site_id>\"], \"element\": [\"<element_id>\"]}."
+          },
+          "start_time": {"type": "string", "description": "ISO 8601, e.g. 2026-08-07T09:00:00.000Z. Optional; may be given without end_time."},
+          "end_time": {"type": "string", "description": "ISO 8601. Optional; may be given without start_time."}
+        }
+      },
+      "output_fields": ["items"],
+      "description": "Event/alarm query.",
+      "requires_live_test": false
+    },
+    {
+      "action_id": "compat.monitor_flows",
+      "domain": "curated",
+      "sdk_call": "monitor_flows",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {
+        "type": "object",
+        "properties": {
+          "start_time": {"type": "string", "description": "ISO 8601, e.g. 2026-08-07T09:00:00.000Z."},
+          "end_time": {"type": "string", "description": "ISO 8601. Must be supplied together with start_time."},
+          "filter": {
+            "type": "object",
+            "description": "Scope filter; a site is effectively required, e.g. {\"site\": [\"<site_id>\"], \"element\": [\"<element_id>\"], \"app\": [\"<app_id>\"], \"path\": [\"<path_id>\"], \"wan_interface\": [\"<waninterface_id>\"]}."
+          },
+          "debug_level": {"type": "string", "description": "'all' returns full flow rows."},
+          "page_size": {"type": "integer", "description": "Rows per page requested from the controller."},
+          "dest_page": {"type": "integer", "description": "1-based page number."}
+        },
+        "required": ["start_time", "end_time"]
+      },
+      "output_fields": ["items"],
+      "description": "Flow-monitoring query. Requires an explicit time window.",
+      "requires_live_test": false
+    },
+    {
+      "action_id": "compat.monitor_metrics",
+      "domain": "curated",
+      "sdk_call": "monitor_metrics",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {
+        "type": "object",
+        "properties": {
+          "start_time": {"type": "string", "description": "ISO 8601 start of the window."},
+          "end_time": {"type": "string", "description": "ISO 8601 end of the window."},
+          "interval": {"type": "string", "description": "Bucket size, e.g. '5min'."},
+          "metrics": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "Series to fetch, e.g. [{\"name\": \"BandwidthUsage\", \"statistics\": [\"average\"], \"unit\": \"Mbps\"}]."
+          },
+          "filter": {"type": "object", "description": "Scope filter, e.g. {\"site\": [\"<site_id>\"], \"element\": [\"<element_id>\"]}."}
+        },
+        "required": ["start_time", "end_time", "interval", "metrics"]
+      },
+      "output_fields": ["metrics"],
+      "description": "Bandwidth/system monitor metrics query over a time window.",
+      "requires_live_test": false
+    },
+    {
+      "action_id": "compat.monitor_lqm_point_metrics",
+      "domain": "curated",
+      "sdk_call": "monitor_lqm_point_metrics",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {
+        "type": "object",
+        "properties": {
+          "start_time": {
+            "type": "string",
+            "description": "ISO 8601 snapshot anchor - this is a point-in-time read, so there is no end_time. Must be in the past: an anchor at or after 'now' is rejected as a future timestamp. Step back at least one interval."
+          },
+          "interval": {"type": "string", "description": "Bucket size, e.g. '5min'."},
+          "metrics": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "Series to fetch, e.g. [{\"name\": \"LqmLatencyPointMetric\", \"unit\": \"milliseconds\", \"statistics\": [\"AVG\"]}]. Also LqmPktLossPointMetric, LqmJitterPointMetric, LqmMosPointMetric."
+          },
+          "filter": {"type": "object", "description": "Scope filter, e.g. {\"site\": [\"<site_id>\"]}."}
+        },
+        "required": ["start_time", "interval", "metrics"]
+      },
+      "output_fields": ["metrics"],
+      "description": "LQM (link quality) point metrics: latency/loss/jitter/MOS at one instant.",
+      "requires_live_test": false
+    },
+    {
+      "action_id": "compat.monitor_probe_point_metrics",
+      "domain": "curated",
+      "sdk_call": "monitor_probe_point_metrics",
+      "http_method": "POST",
+      "api_version": null,
+      "path_parameters": [],
+      "body_schema": {
+        "type": "object",
+        "properties": {
+          "start_time": {
+            "type": "string",
+            "description": "ISO 8601 snapshot anchor - this is a point-in-time read, so there is no end_time. Must be in the past: an anchor at or after 'now' is rejected as a future timestamp. Step back at least one interval."
+          },
+          "interval": {"type": "string", "description": "Bucket size, e.g. '5min'."},
+          "metrics": {
+            "type": "array",
+            "items": {"type": "object"},
+            "description": "Series to fetch, e.g. [{\"name\": \"ProbeLatencyPointMetric\", \"unit\": \"milliseconds\", \"statistics\": [\"AVG\", \"MIN\", \"MAX\"]}]. Also ProbeJitterPointMetric, ProbePktLossPointMetric."
+          },
+          "filter": {"type": "object", "description": "Scope filter, e.g. {\"site\": [\"<site_id>\"]}."}
+        },
+        "required": ["start_time", "interval", "metrics"]
+      },
+      "output_fields": ["metrics"],
+      "description": "Synthetic probe point metrics at one instant.",
+      "requires_live_test": false
+    },
+    {
+      "action_id": "compat.vpnlinks_status",
+      "domain": "curated",
+      "sdk_call": "vpnlinks_status",
+      "http_method": "GET",
+      "api_version": "v2.2",
+      "path_parameters": [{"name": "vpnlink_id", "required": true}],
+      "body_schema": null,
+      "output_fields": ["active", "usable", "link_up", "ep1_element_id", "ep2_element_id", "ep1_interface_id", "ep2_interface_id"],
+      "description": "Per-leg VPN link live status. vpnlink_id comes from get_topology's basenet view or get_wan(operation='vpn_links').",
+      "requires_live_test": false
+    },
+    {
+      "action_id": "compat.vpnlinks_state",
+      "domain": "curated",
+      "sdk_call": "vpnlinks_state",
+      "http_method": "GET",
+      "api_version": "v2.0",
+      "path_parameters": [{"name": "vpnlink_id", "required": true}],
+      "body_schema": null,
+      "output_fields": ["enabled", "al_id"],
+      "description": "Per-leg VPN link administrative state. vpnlink_id comes from get_topology's basenet view or get_wan(operation='vpn_links').",
+      "requires_live_test": false
+    }
+  ]
+}
